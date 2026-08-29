@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Plus, BookOpen, Pencil, Trash2, ChefHat } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { SearchBar } from "@/components/shared/SearchBar";
+import { matchesSearch } from "@/lib/search";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
@@ -23,6 +25,15 @@ export default function RecetasPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Recipe | null>(null);
   const [deleting, setDeleting] = useState<Recipe | null>(null);
+  const [query, setQuery] = useState("");
+
+  const filtered = recipes.filter((r) => {
+    const lineNames = allLines
+      .filter((l) => l.recipe_id === r.id)
+      .map((l) => ingredients.find((i) => i.id === l.ingredient_id)?.name ?? "")
+      .join(" ");
+    return matchesSearch(query, r.name, r.notes, lineNames);
+  });
 
   return (
     <div className="space-y-6">
@@ -36,6 +47,10 @@ export default function RecetasPage() {
         }
       />
 
+      {recipes.length > 0 && (
+        <SearchBar value={query} onChange={setQuery} placeholder="Buscar receta o ingrediente…" />
+      )}
+
       {!loading && recipes.length === 0 ? (
         <EmptyState
           icon={BookOpen}
@@ -44,9 +59,11 @@ export default function RecetasPage() {
           description="Crea una receta y calcularemos automáticamente cuánto te cuesta cada preparación."
           action={<Button onClick={() => setFormOpen(true)}><Plus className="h-4 w-4" /> Crear receta</Button>}
         />
+      ) : filtered.length === 0 ? (
+        <EmptyState emoji="🔍" title="Sin resultados" description="No hay recetas que coincidan con tu búsqueda." />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {recipes.map((r) => {
+          {filtered.map((r) => {
             const lines = allLines.filter((l) => l.recipe_id === r.id);
             const cost = computeRecipeCost(r, lines, ingredients);
             return (

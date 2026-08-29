@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Users, ChevronRight, Search } from "lucide-react";
+import { Plus, Users, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { SearchBar } from "@/components/shared/SearchBar";
+import { matchesSearch } from "@/lib/search";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/field";
 import { CustomerForm } from "@/components/features/customers/CustomerForm";
 import { CustomerDetail } from "@/components/features/customers/CustomerDetail";
 import { useTable } from "@/lib/data/hooks";
@@ -27,9 +28,7 @@ export default function ClientesPage() {
 
   const receivable = totalReceivable(sales);
   const list = useMemo(() => {
-    const filtered = customers.filter((c) =>
-      c.name.toLowerCase().includes(query.toLowerCase())
-    );
+    const filtered = customers.filter((c) => matchesSearch(query, c.name, c.phone));
     return filtered
       .map((c) => ({ ...c, debt: customerDebt(c.id, sales) }))
       .sort((a, b) => b.debt - a.debt || a.name.localeCompare(b.name));
@@ -55,10 +54,7 @@ export default function ClientesPage() {
       )}
 
       {customers.length > 0 && (
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cocoa-soft" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cliente…" className="pl-9" />
-        </div>
+        <SearchBar value={query} onChange={setQuery} placeholder="Buscar cliente o teléfono…" />
       )}
 
       {!loading && customers.length === 0 ? (
@@ -69,6 +65,8 @@ export default function ClientesPage() {
           description="Agrega clientes para llevar su historial de compras y deudas."
           action={<Button onClick={() => setFormOpen(true)}><Plus className="h-4 w-4" /> Agregar cliente</Button>}
         />
+      ) : list.length === 0 ? (
+        <EmptyState emoji="🔍" title="Sin resultados" description="No hay clientes que coincidan con tu búsqueda." />
       ) : (
         <div className="space-y-2">
           {list.map((c) => (

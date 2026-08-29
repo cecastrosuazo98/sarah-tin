@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { Plus, Package, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { SearchBar } from "@/components/shared/SearchBar";
+import { matchesSearch } from "@/lib/search";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -24,12 +26,17 @@ export default function ProductosPage() {
   const [editing, setEditing] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState<Product | null>(null);
   const [filter, setFilter] = useState("Todas");
+  const [query, setQuery] = useState("");
 
   const categories = useMemo(
     () => ["Todas", ...settings.product_categories],
     [settings.product_categories]
   );
-  const shown = products.filter((p) => filter === "Todas" || p.category === filter);
+  const shown = products.filter(
+    (p) =>
+      (filter === "Todas" || p.category === filter) &&
+      matchesSearch(query, p.name, p.category, p.description)
+  );
 
   return (
     <div className="space-y-6">
@@ -42,6 +49,10 @@ export default function ProductosPage() {
           </Button>
         }
       />
+
+      {products.length > 0 && (
+        <SearchBar value={query} onChange={setQuery} placeholder="Buscar producto…" />
+      )}
 
       {products.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-1 soft-scroll">
@@ -67,6 +78,8 @@ export default function ProductosPage() {
           description="Agrega tu primer producto para comenzar a vender y ver tus márgenes."
           action={<Button onClick={() => setFormOpen(true)}><Plus className="h-4 w-4" /> Agregar producto</Button>}
         />
+      ) : shown.length === 0 ? (
+        <EmptyState emoji="🔍" title="Sin resultados" description="No hay productos que coincidan con tu búsqueda." />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {shown.map((p) => (

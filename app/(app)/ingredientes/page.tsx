@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Plus, Egg, ShoppingBag, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { SearchBar } from "@/components/shared/SearchBar";
+import { matchesSearch } from "@/lib/search";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -25,8 +27,11 @@ export default function IngredientesPage() {
   const [editing, setEditing] = useState<Ingredient | null>(null);
   const [buying, setBuying] = useState<Ingredient | null>(null);
   const [deleting, setDeleting] = useState<Ingredient | null>(null);
+  const [query, setQuery] = useState("");
 
-  const sorted = [...ingredients].sort((a, b) => a.name.localeCompare(b.name));
+  const sorted = [...ingredients]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .filter((i) => matchesSearch(query, i.name, i.category));
   const lowCount = ingredients.filter((i) => i.stock <= i.min_stock).length;
 
   const friendlyCost = (i: Ingredient) => {
@@ -54,7 +59,7 @@ export default function IngredientesPage() {
         </div>
       )}
 
-      {!loading && sorted.length === 0 ? (
+      {!loading && ingredients.length === 0 ? (
         <EmptyState
           icon={Egg}
           emoji="🥚"
@@ -63,8 +68,15 @@ export default function IngredientesPage() {
           action={<Button onClick={() => setFormOpen(true)}><Plus className="h-4 w-4" /> Agregar ingrediente</Button>}
         />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {sorted.map((i) => {
+        <>
+          {ingredients.length > 0 && (
+            <SearchBar value={query} onChange={setQuery} placeholder="Buscar ingrediente…" />
+          )}
+          {sorted.length === 0 ? (
+            <EmptyState emoji="🔍" title="Sin resultados" description={`No hay ingredientes que coincidan con "${query}".`} />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {sorted.map((i) => {
             const low = i.stock <= i.min_stock;
             return (
               <div key={i.id} className="rounded-2xl border border-peach/60 bg-white/80 p-4 shadow-card">
@@ -100,9 +112,11 @@ export default function IngredientesPage() {
                   </Button>
                 </div>
               </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
 
       <IngredientForm open={formOpen} onClose={() => setFormOpen(false)} editing={editing} />

@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { Plus, Receipt, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { SearchBar } from "@/components/shared/SearchBar";
+import { matchesSearch } from "@/lib/search";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
@@ -36,10 +38,12 @@ export default function GastosPage() {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [fromCash, setFromCash] = useState(false);
 
+  const [query, setQuery] = useState("");
   const sorted = useMemo(
     () => [...expenses].sort((a, b) => b.expense_date.localeCompare(a.expense_date)),
     [expenses]
   );
+  const filtered = sorted.filter((e) => matchesSearch(query, e.description, e.category));
   const now = new Date();
   const monthTotal = expenses
     .filter((e) => inRange(e.expense_date, startOfMonth(now), now))
@@ -75,6 +79,10 @@ export default function GastosPage() {
         <p className="font-display text-2xl font-extrabold text-gold-dark">{formatMoney(monthTotal)}</p>
       </div>
 
+      {sorted.length > 0 && (
+        <SearchBar value={query} onChange={setQuery} placeholder="Buscar gasto…" />
+      )}
+
       {!loading && sorted.length === 0 ? (
         <EmptyState
           icon={Receipt}
@@ -83,9 +91,11 @@ export default function GastosPage() {
           description="Registra tus gastos para ver tu resultado real del mes."
           action={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Registrar gasto</Button>}
         />
+      ) : filtered.length === 0 ? (
+        <EmptyState emoji="🔍" title="Sin resultados" description="No hay gastos que coincidan con tu búsqueda." />
       ) : (
         <div className="space-y-2">
-          {sorted.map((e) => (
+          {filtered.map((e) => (
             <div key={e.id} className="flex items-center gap-3 rounded-2xl border border-peach/60 bg-white/80 p-4 shadow-card">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#FBF1DA] text-gold-dark">
                 <Receipt className="h-5 w-5" />

@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { SearchBar } from "@/components/shared/SearchBar";
+import { matchesSearch } from "@/lib/search";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -29,12 +31,22 @@ export default function VentasPage() {
   const { data: customers } = useTable<Customer>(TABLES.customers);
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState<Sale | null>(null);
+  const [query, setQuery] = useState("");
   useAutoOpen(() => setOpen(true));
 
   const sorted = useMemo(
     () => [...sales].sort((a, b) => +new Date(b.sale_date) - +new Date(a.sale_date)),
     [sales]
   );
+
+  const filtered = sorted.filter((s) => {
+    const customer = customers.find((c) => c.id === s.customer_id)?.name ?? "";
+    const items = saleItems
+      .filter((it) => it.sale_id === s.id)
+      .map((it) => it.name_snapshot)
+      .join(" ");
+    return matchesSearch(query, customer, items, methodLabel(s.method), s.notes);
+  });
 
   const now = new Date();
   const todayTotal = sales
@@ -67,6 +79,10 @@ export default function VentasPage() {
         </div>
       </div>
 
+      {sorted.length > 0 && (
+        <SearchBar value={query} onChange={setQuery} placeholder="Buscar por cliente o producto…" />
+      )}
+
       {!loading && sorted.length === 0 ? (
         <EmptyState
           icon={ShoppingCart}
@@ -75,9 +91,11 @@ export default function VentasPage() {
           description="Registra tu primera venta y empieza a llevar el control del día."
           action={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Nueva venta</Button>}
         />
+      ) : filtered.length === 0 ? (
+        <EmptyState emoji="🔍" title="Sin resultados" description="No hay ventas que coincidan con tu búsqueda." />
       ) : (
         <div className="space-y-2">
-          {sorted.map((s) => {
+          {filtered.map((s) => {
             const items = saleItems.filter((it) => it.sale_id === s.id);
             const customer = customers.find((c) => c.id === s.customer_id);
             const summary = items.map((it) => `${it.quantity}× ${it.name_snapshot}`).join(", ");

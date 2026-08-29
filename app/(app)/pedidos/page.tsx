@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { Plus, CalendarDays, Clock, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { SearchBar } from "@/components/shared/SearchBar";
+import { matchesSearch } from "@/lib/search";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/field";
@@ -48,18 +50,33 @@ export default function PedidosPage() {
   const { data: customers } = useTable<Customer>(TABLES.customers);
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState<Order | null>(null);
+  const [query, setQuery] = useState("");
   useAutoOpen(() => setOpen(true));
+
+  const filteredOrders = useMemo(
+    () =>
+      orders.filter((o) => {
+        const customer = customers.find((c) => c.id === o.customer_id)?.name ?? "";
+        const items = orderItems
+          .filter((it) => it.order_id === o.id)
+          .map((it) => it.name_snapshot)
+          .join(" ");
+        const statusLabel = ORDER_STATUSES.find((s) => s.value === o.status)?.label ?? "";
+        return matchesSearch(query, customer, o.code, items, o.notes, statusLabel);
+      }),
+    [orders, customers, orderItems, query]
+  );
 
   const groups = useMemo(() => {
     const map = new Map<string, Order[]>();
-    [...orders]
+    [...filteredOrders]
       .sort((a, b) => a.order_date.localeCompare(b.order_date) || (a.order_time ?? "").localeCompare(b.order_time ?? ""))
       .forEach((o) => {
         const b = bucketOf(o.order_date);
         map.set(b, [...(map.get(b) ?? []), o]);
       });
     return map;
-  }, [orders]);
+  }, [filteredOrders]);
 
   return (
     <div className="space-y-6">
@@ -69,6 +86,10 @@ export default function PedidosPage() {
         action={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Nuevo</Button>}
       />
 
+      {orders.length > 0 && (
+        <SearchBar value={query} onChange={setQuery} placeholder="Buscar pedido, cliente o estado…" />
+      )}
+
       {!loading && orders.length === 0 ? (
         <EmptyState
           icon={CalendarDays}
@@ -77,6 +98,8 @@ export default function PedidosPage() {
           description="Agenda tu primer pedido con fecha de entrega y estado."
           action={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Nuevo pedido</Button>}
         />
+      ) : groups.size === 0 ? (
+        <EmptyState emoji="🔍" title="Sin resultados" description="No hay pedidos que coincidan con tu búsqueda." />
       ) : (
         <div className="space-y-6">
           {ORDER.filter((b) => groups.has(b)).map((bucket) => (
