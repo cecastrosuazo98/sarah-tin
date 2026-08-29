@@ -7,6 +7,7 @@ import { Field, Select } from "@/components/ui/field";
 import { MoneyInput, NumberInput } from "@/components/ui/money-input";
 import { useToast } from "@/components/ui/toast";
 import { registerPurchase } from "@/lib/data/repo";
+import { getErrorMessage } from "@/lib/data/error";
 import type { Ingredient, MeasureUnit } from "@/lib/data/types";
 import { compatibleUnits } from "@/lib/domain/units";
 
@@ -58,7 +59,7 @@ export function PurchaseForm({
       toast("Compra registrada 💕");
       onClose();
     } catch (e) {
-      toast(e instanceof Error ? e.message : "No se pudo registrar.", "error");
+      toast(getErrorMessage(e, "No se pudo registrar."), "error");
     } finally {
       setSaving(false);
     }

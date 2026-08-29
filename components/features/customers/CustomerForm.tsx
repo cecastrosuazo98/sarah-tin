@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import { create, update } from "@/lib/data/client";
+import { getErrorMessage } from "@/lib/data/error";
 import { TABLES } from "@/lib/data/types";
 import type { Customer } from "@/lib/data/types";
 
@@ -57,8 +58,8 @@ export function CustomerForm({
         toast("Cliente agregado 💕");
       }
       onClose();
-    } catch {
-      toast("No pudimos guardar el cliente.", "error");
+    } catch (e) {
+      toast(getErrorMessage(e, "No pudimos guardar el cliente."), "error");
     } finally {
       setSaving(false);
     }

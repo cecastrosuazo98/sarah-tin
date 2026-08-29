@@ -11,7 +11,8 @@ import { useToast } from "@/components/ui/toast";
 import { SaleForm } from "@/components/features/sales/SaleForm";
 import { useTable } from "@/lib/data/hooks";
 import { useAutoOpen } from "@/lib/hooks/useAutoOpen";
-import { remove } from "@/lib/data/client";
+import { deleteSale } from "@/lib/data/repo";
+import { getErrorMessage } from "@/lib/data/error";
 import { TABLES } from "@/lib/data/types";
 import type { Sale, SaleItem, Customer } from "@/lib/data/types";
 import { formatMoney } from "@/lib/format";
@@ -120,13 +121,10 @@ export default function VentasPage() {
         onConfirm={async () => {
           if (!deleting) return;
           try {
-            for (const it of saleItems.filter((x) => x.sale_id === deleting.id)) {
-              await remove(TABLES.sale_items, it.id);
-            }
-            await remove(TABLES.sales, deleting.id);
-            toast("Venta eliminada");
+            await deleteSale(deleting.id);
+            toast("Venta eliminada y stock repuesto");
           } catch (e) {
-            toast(e instanceof Error ? e.message : "No se pudo eliminar.", "error");
+            toast(getErrorMessage(e, "No se pudo eliminar."), "error");
             throw e;
           }
         }}

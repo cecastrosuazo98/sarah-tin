@@ -8,6 +8,7 @@ import { Field, Input, Select } from "@/components/ui/field";
 import { MoneyInput, NumberInput } from "@/components/ui/money-input";
 import { useToast } from "@/components/ui/toast";
 import { create, update } from "@/lib/data/client";
+import { getErrorMessage } from "@/lib/data/error";
 import { TABLES } from "@/lib/data/types";
 import type { Ingredient, BaseUnit } from "@/lib/data/types";
 import { INGREDIENT_TYPES, UNIT_LABEL } from "@/lib/domain/units";
@@ -89,7 +90,7 @@ export function IngredientForm({
       }
       onClose();
     } catch (e) {
-      toast(e instanceof Error ? e.message : "No pudimos guardar. Intenta de nuevo.", "error");
+      toast(getErrorMessage(e, "No pudimos guardar. Intenta de nuevo."), "error");
     } finally {
       setSaving(false);
     }

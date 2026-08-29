@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { useTable } from "@/lib/data/hooks";
 import { useSettings } from "@/lib/data/settings";
 import { create, update } from "@/lib/data/client";
+import { getErrorMessage } from "@/lib/data/error";
 import { TABLES } from "@/lib/data/types";
 import type { Product, Recipe, RecipeIngredient, Ingredient } from "@/lib/data/types";
 import { computeRecipeCost, computeProductEconomics } from "@/lib/domain/costing";
@@ -94,8 +95,8 @@ export function ProductForm({
         toast("Producto agregado 💕");
       }
       onClose();
-    } catch {
-      toast("No pudimos guardar el producto.", "error");
+    } catch (e) {
+      toast(getErrorMessage(e, "No pudimos guardar el producto."), "error");
     } finally {
       setSaving(false);
     }

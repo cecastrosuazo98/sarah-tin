@@ -51,4 +51,15 @@
   .soft-scroll::-webkit-scrollbar-thumb {
     @apply rounded-full bg-peach-dark;
   }
+
+  /* Áreas seguras (notch / barra de inicio) para la PWA instalada */
+  .safe-top {
+    padding-top: calc(0.6rem + env(safe-area-inset-top));
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-sheet {
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  }
 }

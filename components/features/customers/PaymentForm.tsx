@@ -7,6 +7,7 @@ import { Field, Select } from "@/components/ui/field";
 import { MoneyInput } from "@/components/ui/money-input";
 import { useToast } from "@/components/ui/toast";
 import { registerPayment } from "@/lib/data/repo";
+import { getErrorMessage } from "@/lib/data/error";
 import type { Customer, PaymentMethod } from "@/lib/data/types";
 import { PAYMENT_METHODS } from "@/lib/constants";
 import { formatMoney } from "@/lib/format";
@@ -46,7 +47,7 @@ export function PaymentForm({
       toast("Pago registrado 💕");
       onClose();
     } catch (e) {
-      toast(e instanceof Error ? e.message : "No se pudo registrar el pago.", "error");
+      toast(getErrorMessage(e, "No se pudo registrar el pago."), "error");
     } finally {
       setSaving(false);
     }

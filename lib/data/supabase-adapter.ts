@@ -2,6 +2,18 @@
 import { createClient } from "@/lib/supabase/client";
 import { DataAdapter } from "./adapter";
 
+/** Registra el error en consola con contexto y lo relanza. */
+function fail(op: string, table: string, error: unknown): never {
+  const e = error as { message?: string; code?: string; details?: string; hint?: string };
+  // eslint-disable-next-line no-console
+  console.error(
+    `[Supabase] ${op} en "${table}" falló:`,
+    e?.message ?? error,
+    { code: e?.code, details: e?.details, hint: e?.hint }
+  );
+  throw error;
+}
+
 export class SupabaseAdapter implements DataAdapter {
   private supabase = createClient();
   private ownerId: string | null = null;
@@ -11,7 +23,7 @@ export class SupabaseAdapter implements DataAdapter {
     const {
       data: { user },
     } = await this.supabase.auth.getUser();
-    if (!user) throw new Error("Sesión no encontrada");
+    if (!user) throw new Error("Tu sesión expiró. Cierra sesión y vuelve a entrar.");
     this.ownerId = user.id;
     return user.id;
   }
@@ -21,7 +33,7 @@ export class SupabaseAdapter implements DataAdapter {
       .from(table)
       .select("*")
       .order("created_at", { ascending: false });
-    if (error) throw error;
+    if (error) fail("list", table, error);
     return (data ?? []) as T[];
   }
 
@@ -35,7 +47,7 @@ export class SupabaseAdapter implements DataAdapter {
       .insert({ ...row, owner_id })
       .select()
       .single();
-    if (error) throw error;
+    if (error) fail("insert", table, error);
     return data as T;
   }
 
@@ -50,13 +62,13 @@ export class SupabaseAdapter implements DataAdapter {
       .eq("id", id)
       .select()
       .single();
-    if (error) throw error;
+    if (error) fail("update", table, error);
     return data as T;
   }
 
   async remove(table: string, id: string): Promise<void> {
     const { error } = await this.supabase.from(table).delete().eq("id", id);
-    if (error) throw error;
+    if (error) fail("remove", table, error);
   }
 
   async seedIfEmpty(): Promise<void> {

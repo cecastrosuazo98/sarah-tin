@@ -9,6 +9,7 @@ import { MoneyInput } from "@/components/ui/money-input";
 import { useToast } from "@/components/ui/toast";
 import { useTable } from "@/lib/data/hooks";
 import { createSale } from "@/lib/data/repo";
+import { getErrorMessage } from "@/lib/data/error";
 import { TABLES } from "@/lib/data/types";
 import type { Product, Customer, PaymentMethod, PaymentStatus } from "@/lib/data/types";
 import { PAYMENT_METHODS } from "@/lib/constants";
@@ -84,7 +85,7 @@ export function SaleForm({ open, onClose }: { open: boolean; onClose: () => void
       toast("Venta registrada correctamente 💕");
       onClose();
     } catch (e) {
-      toast(e instanceof Error ? e.message : "No se pudo registrar la venta.", "error");
+      toast(getErrorMessage(e, "No se pudo registrar la venta."), "error");
     } finally {
       setSaving(false);
     }

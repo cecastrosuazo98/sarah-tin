@@ -24,12 +24,72 @@ import type {
   Expense,
   Order,
   OrderItem,
+  Product,
+  Recipe,
+  RecipeIngredient,
   PaymentMethod,
   PaymentStatus,
   MeasureUnit,
   OrderStatus,
 } from "./types";
 import { toBase } from "@/lib/domain/units";
+
+// ---------------- Inventario (descuento/reposición por venta) ----------------
+
+/**
+ * Calcula cuánto stock de productos e ingredientes consume (o repone) un
+ * conjunto de ítems vendidos. `sign` = -1 descuenta (venta), +1 repone
+ * (al eliminar una venta). Aplica los cambios en el store.
+ */
+async function applyStockForItems(
+  items: { productId: string | null; quantity: number }[],
+  sign: -1 | 1
+): Promise<void> {
+  const withProduct = items.filter((it) => it.productId);
+  if (withProduct.length === 0) return;
+
+  const [products, recipes, recipeLines, ingredients] = await Promise.all([
+    list<Product>(TABLES.products),
+    list<Recipe>(TABLES.recipes),
+    list<RecipeIngredient>(TABLES.recipe_ingredients),
+    list<Ingredient>(TABLES.ingredients),
+  ]);
+
+  const ingredientDelta = new Map<string, number>(); // ingredient_id -> unidades base
+
+  for (const it of withProduct) {
+    const product = products.find((p) => p.id === it.productId);
+    if (!product) continue;
+
+    // Stock del producto (trozos / unidades).
+    await updateSilent<Product>(TABLES.products, product.id, {
+      stock: (product.stock ?? 0) + sign * it.quantity,
+    });
+
+    // Ingredientes, proporcional al rendimiento de la receta.
+    if (product.recipe_id) {
+      const recipe = recipes.find((r) => r.id === product.recipe_id);
+      if (recipe && recipe.yield_qty > 0) {
+        const factor = it.quantity / recipe.yield_qty;
+        for (const line of recipeLines.filter((l) => l.recipe_id === recipe.id)) {
+          const consumed = toBase(line.quantity, line.unit) * factor;
+          ingredientDelta.set(
+            line.ingredient_id,
+            (ingredientDelta.get(line.ingredient_id) ?? 0) + consumed
+          );
+        }
+      }
+    }
+  }
+
+  for (const [ingId, amount] of ingredientDelta) {
+    const ing = ingredients.find((i) => i.id === ingId);
+    if (!ing) continue;
+    await updateSilent<Ingredient>(TABLES.ingredients, ingId, {
+      stock: ing.stock + sign * amount,
+    });
+  }
+}
 
 // ---------------- Caja ----------------
 
@@ -139,6 +199,9 @@ export async function createSale(input: NewSaleInput): Promise<Sale> {
     });
   }
 
+  // Descuenta inventario: stock de productos e ingredientes (según receta).
+  await applyStockForItems(input.items, -1);
+
   // Ingreso a caja por el monto pagado en efectivo.
   if (paid > 0 && input.method === "efectivo") {
     const reg = await getOpenRegister();
@@ -153,6 +216,25 @@ export async function createSale(input: NewSaleInput): Promise<Sale> {
 
   emitChange();
   return sale;
+}
+
+/**
+ * Elimina una venta y repone el inventario que había descontado
+ * (para no descuadrar el stock).
+ */
+export async function deleteSale(saleId: string): Promise<void> {
+  const items = (await list<SaleItem>(TABLES.sale_items)).filter(
+    (it) => it.sale_id === saleId
+  );
+  await applyStockForItems(
+    items.map((it) => ({ productId: it.product_id, quantity: it.quantity })),
+    1
+  );
+  for (const it of items) {
+    await remove(TABLES.sale_items, it.id);
+  }
+  await remove(TABLES.sales, saleId);
+  emitChange();
 }
 
 // ---------------- Pagos de deuda ----------------

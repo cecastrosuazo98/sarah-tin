@@ -11,6 +11,7 @@ import { MoneyInput } from "@/components/ui/money-input";
 import { useToast } from "@/components/ui/toast";
 import { useTable } from "@/lib/data/hooks";
 import { openCashRegister, closeCashRegister, addCashMovement } from "@/lib/data/repo";
+import { getErrorMessage } from "@/lib/data/error";
 import { TABLES } from "@/lib/data/types";
 import type { CashRegister, CashMovement } from "@/lib/data/types";
 import { formatMoney } from "@/lib/format";
@@ -48,7 +49,7 @@ export default function CajaPage() {
       toast("Caja abierta 💕");
       setOpenModal(false);
     } catch (e) {
-      toast(e instanceof Error ? e.message : "No se pudo abrir.", "error");
+      toast(getErrorMessage(e, "No se pudo abrir."), "error");
     }
   };
   const doClose = async () => {
@@ -69,7 +70,7 @@ export default function CajaPage() {
       setMovAmount(0);
       setMovDesc("");
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Error", "error");
+      toast(getErrorMessage(e, "No se pudo registrar el movimiento."), "error");
     }
   };
 

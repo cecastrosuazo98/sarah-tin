@@ -71,7 +71,9 @@ export function Modal({
         <div className="soft-scroll flex-1 overflow-y-auto p-5">{children}</div>
 
         {footer && (
-          <div className="flex gap-3 border-t border-peach/60 p-4">{footer}</div>
+          <div className="flex gap-3 border-t border-peach/60 p-4 pb-[calc(1rem_+_env(safe-area-inset-bottom))] sm:pb-4">
+            {footer}
+          </div>
         )}
       </div>
     </div>

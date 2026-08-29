@@ -9,6 +9,7 @@ import { MoneyInput, NumberInput } from "@/components/ui/money-input";
 import { useToast } from "@/components/ui/toast";
 import { useTable } from "@/lib/data/hooks";
 import { createOrder } from "@/lib/data/repo";
+import { getErrorMessage } from "@/lib/data/error";
 import { TABLES } from "@/lib/data/types";
 import type { Customer, Product, Order } from "@/lib/data/types";
 import { formatMoney } from "@/lib/format";
@@ -73,7 +74,7 @@ export function OrderForm({ open, onClose }: { open: boolean; onClose: () => voi
       toast("Pedido creado 💕");
       onClose();
     } catch (e) {
-      toast(e instanceof Error ? e.message : "No se pudo crear el pedido.", "error");
+      toast(getErrorMessage(e, "No se pudo crear el pedido."), "error");
     } finally {
       setSaving(false);
     }

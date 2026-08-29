@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { useTable } from "@/lib/data/hooks";
 import { create, update, remove, createSilent } from "@/lib/data/client";
 import { emitChange } from "@/lib/data/bus";
+import { getErrorMessage } from "@/lib/data/error";
 import { TABLES } from "@/lib/data/types";
 import type { Ingredient, Recipe, RecipeIngredient, MeasureUnit } from "@/lib/data/types";
 import { compatibleUnits } from "@/lib/domain/units";
@@ -117,7 +118,7 @@ export function RecipeForm({
       toast(editing ? "Receta actualizada 💕" : "Receta creada 💕");
       onClose();
     } catch (e) {
-      toast(e instanceof Error ? e.message : "No pudimos guardar la receta.", "error");
+      toast(getErrorMessage(e, "No pudimos guardar la receta."), "error");
     } finally {
       setSaving(false);
     }

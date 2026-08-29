@@ -15,6 +15,7 @@ import { useTable } from "@/lib/data/hooks";
 import { useAutoOpen } from "@/lib/hooks/useAutoOpen";
 import { useSettings } from "@/lib/data/settings";
 import { addExpense } from "@/lib/data/repo";
+import { getErrorMessage } from "@/lib/data/error";
 import { remove } from "@/lib/data/client";
 import { TABLES } from "@/lib/data/types";
 import type { Expense } from "@/lib/data/types";
@@ -57,7 +58,7 @@ export default function GastosPage() {
       setAmount(0);
       setFromCash(false);
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Error", "error");
+      toast(getErrorMessage(e, "No se pudo registrar el gasto."), "error");
     }
   };
 

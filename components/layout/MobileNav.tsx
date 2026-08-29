@@ -39,7 +39,7 @@ export function MobileNav() {
     <>
       {/* Barra inferior */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-peach/60 bg-cream-50/95 backdrop-blur-md lg:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-5 items-end px-2 pb-[env(safe-area-inset-bottom)] pt-1">
+        <div className="safe-bottom mx-auto grid max-w-md grid-cols-5 items-end px-2 pt-1.5">
           {BOTTOM_NAV_ITEMS.slice(0, 2).map((item) => (
             <NavButton key={item.href} active={isActive(item.href)} icon={item.icon} label={item.label} href={item.href} />
           ))}
@@ -76,7 +76,7 @@ export function MobileNav() {
             className="absolute inset-0 bg-cocoa/30 backdrop-blur-sm animate-fade-up"
             onClick={() => setSheet(null)}
           />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-peach bg-cream-50 p-5 pb-8 shadow-lift animate-fade-up">
+          <div className="safe-sheet absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-peach bg-cream-50 p-5 shadow-lift animate-fade-up">
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-peach-dark" />
             <div className="mb-4 flex items-center justify-between">
               <h2 className="font-display text-lg font-bold text-cocoa">
