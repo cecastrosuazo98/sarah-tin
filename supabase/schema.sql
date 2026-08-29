@@ -365,6 +365,15 @@ alter table public.ingredient_purchases add column if not exists supplier text;
 alter table public.products add column if not exists category text;
 alter table public.expenses add column if not exists category text;
 
+-- created_at faltante en algunas tablas (consistencia; opcional):
+alter table public.recipe_ingredients add column if not exists created_at timestamptz not null default now();
+alter table public.sale_items add column if not exists created_at timestamptz not null default now();
+alter table public.order_items add column if not exists created_at timestamptz not null default now();
+alter table public.payments add column if not exists created_at timestamptz not null default now();
+alter table public.cash_registers add column if not exists created_at timestamptz not null default now();
+alter table public.ingredient_purchases add column if not exists created_at timestamptz not null default now();
+alter table public.product_costs add column if not exists created_at timestamptz not null default now();
+
 -- ============================================================================
 --  Índices útiles
 -- ============================================================================

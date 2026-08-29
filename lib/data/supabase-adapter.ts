@@ -29,10 +29,10 @@ export class SupabaseAdapter implements DataAdapter {
   }
 
   async list<T = Record<string, unknown>>(table: string): Promise<T[]> {
-    const { data, error } = await this.supabase
-      .from(table)
-      .select("*")
-      .order("created_at", { ascending: false });
+    // Sin ordenar: no todas las tablas tienen `created_at` (ordenar por una
+    // columna inexistente da 400). Cada página ordena lo que necesita, igual
+    // que en modo local.
+    const { data, error } = await this.supabase.from(table).select("*");
     if (error) fail("list", table, error);
     return (data ?? []) as T[];
   }
