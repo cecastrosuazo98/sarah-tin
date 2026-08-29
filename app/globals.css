@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-cream text-cocoa antialiased;
+    background-image:
+      radial-gradient(120% 120% at 100% 0%, rgba(231, 159, 190, 0.08) 0%, transparent 45%),
+      radial-gradient(120% 120% at 0% 100%, rgba(169, 212, 222, 0.1) 0%, transparent 45%);
+    background-attachment: fixed;
+    min-height: 100dvh;
+  }
+
+  /* Foco accesible consistente */
+  :focus-visible {
+    @apply outline-none ring-2 ring-sarah ring-offset-2 ring-offset-cream;
+  }
+}
+
+@layer utilities {
+  /* Skeleton loader con brillo */
+  .skeleton {
+    @apply relative overflow-hidden rounded-xl bg-peach-light/70;
+  }
+  .skeleton::after {
+    content: "";
+    @apply absolute inset-0 -translate-x-full;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.55),
+      transparent
+    );
+    animation: shimmer 1.6s infinite;
+  }
+
+  /* Scrollbar suave */
+  .soft-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .soft-scroll::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-peach-dark;
+  }
+}

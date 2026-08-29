@@ -1,0 +1,17 @@
+🍰 LOGO DE SARAH & TIN
+=======================
+
+Para usar el logo OFICIAL en toda la app:
+
+1. Guarda tu archivo de logo en esta carpeta (public/) con el nombre:
+
+      logo.png
+
+   (idealmente cuadrado, con fondo, por ejemplo 512x512 px)
+
+2. Listo. La app lo mostrará automáticamente en el encabezado, el login
+   y el emblema, reemplazando el dibujo temporal.
+
+Mientras no exista public/logo.png, la app muestra un emblema dibujado
+(cupcake + laurel dorado) con los mismos colores de la marca, para que
+nunca se vea un espacio vacío.
