@@ -50,7 +50,7 @@ export function CustomerDetail({
   );
 
   const defaultMessage = customer
-    ? `Hola ${customer.name.split(" ")[0]} 😊\n\nTe escribimos de ${BRAND.name} para recordarte que tienes un saldo pendiente de ${formatMoney(debt)}.\n\n¡Muchas gracias por preferirnos! 💕🍰`
+    ? `Hola ${customer.name.split(" ")[0]}, te escribimos de ${BRAND.name} para recordarte que tienes un saldo pendiente de ${formatMoney(debt)}.\n\n¡Muchas gracias por preferirnos!`
     : "";
   const [message, setMessage] = useState(defaultMessage);
 
