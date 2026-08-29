@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Oculta el badge promocional de Netlify (plan gratuito) en el sitio desplegado.
+   Solo afecta a ese iframe concreto; en otros hostings no existe y no hace nada. */
+#nl-badge-frame,
+#netlify-badge,
+[id^="nl-badge"] {
+  display: none !important;
+}
+
 @layer base {
   :root {
     color-scheme: light;
