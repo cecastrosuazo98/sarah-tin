@@ -106,6 +106,22 @@ Todo interconectado: cambiar el costo de un ingrediente recalcula recetas y
 productos; una venta paga entra a la caja; un pago abona la deuda del cliente
 y entra a la caja; los reportes reflejan todo en tiempo real.
 
+## 📱 Instalar como app (PWA)
+
+Sarah & Tin es una **PWA**: se puede instalar en el teléfono y abrir como una app,
+con ícono propio y pantalla completa. Funciona mejor con la app desplegada (HTTPS)
+o con un build de producción (`npm run build` + `npm start`).
+
+- **Android / Chrome de escritorio:** aparece la opción "Instalar app" (también en
+  la sección **Configuración** de la app).
+- **iPhone (Safari):** botón Compartir → "Agregar a inicio".
+
+Los íconos se generan desde `public/logo.png` con:
+
+```bash
+node scripts/gen-icons.mjs
+```
+
 ## ☁️ Despliegue
 
 Compatible con **Vercel** y **Netlify**. Recuerda definir las mismas variables

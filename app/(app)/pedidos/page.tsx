@@ -159,11 +159,16 @@ export default function PedidosPage() {
         onClose={() => setDeleting(null)}
         onConfirm={async () => {
           if (!deleting) return;
-          for (const it of orderItems.filter((x) => x.order_id === deleting.id)) {
-            await remove(TABLES.order_items, it.id);
+          try {
+            for (const it of orderItems.filter((x) => x.order_id === deleting.id)) {
+              await remove(TABLES.order_items, it.id);
+            }
+            await remove(TABLES.orders, deleting.id);
+            toast("Pedido eliminado");
+          } catch (e) {
+            toast(e instanceof Error ? e.message : "No se pudo eliminar.", "error");
+            throw e;
           }
-          await remove(TABLES.orders, deleting.id);
-          toast("Pedido eliminado");
         }}
         title="Eliminar pedido"
         message="¿Eliminar este pedido? Esta acción no se puede deshacer."

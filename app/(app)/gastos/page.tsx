@@ -148,9 +148,13 @@ export default function GastosPage() {
         open={!!deleting}
         onClose={() => setDeleting(null)}
         onConfirm={async () => {
-          if (deleting) {
+          if (!deleting) return;
+          try {
             await remove(TABLES.expenses, deleting.id);
             toast("Gasto eliminado");
+          } catch (e) {
+            toast(e instanceof Error ? e.message : "No se pudo eliminar.", "error");
+            throw e;
           }
         }}
         title="Eliminar gasto"

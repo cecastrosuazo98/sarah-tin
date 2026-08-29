@@ -13,13 +13,14 @@ import { PurchaseForm } from "@/components/features/ingredients/PurchaseForm";
 import { useTable } from "@/lib/data/hooks";
 import { remove } from "@/lib/data/client";
 import { TABLES } from "@/lib/data/types";
-import type { Ingredient } from "@/lib/data/types";
+import type { Ingredient, RecipeIngredient } from "@/lib/data/types";
 import { formatMoney, formatQuantity } from "@/lib/format";
 import { UNIT_LABEL } from "@/lib/domain/units";
 
 export default function IngredientesPage() {
   const toast = useToast();
   const { data: ingredients, loading } = useTable<Ingredient>(TABLES.ingredients);
+  const { data: recipeLines } = useTable<RecipeIngredient>(TABLES.recipe_ingredients);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Ingredient | null>(null);
   const [buying, setBuying] = useState<Ingredient | null>(null);
@@ -110,13 +111,34 @@ export default function IngredientesPage() {
         open={!!deleting}
         onClose={() => setDeleting(null)}
         onConfirm={async () => {
-          if (deleting) {
+          if (!deleting) return;
+          try {
+            // Quita el ingrediente de las recetas que lo usan (evita el error de
+            // llave foránea en Supabase) antes de eliminarlo.
+            const lines = recipeLines.filter((l) => l.ingredient_id === deleting.id);
+            for (const l of lines) {
+              await remove(TABLES.recipe_ingredients, l.id);
+            }
             await remove(TABLES.ingredients, deleting.id);
-            toast("Ingrediente eliminado");
+            toast(
+              lines.length > 0
+                ? `Ingrediente eliminado (quitado de ${lines.length} receta${lines.length > 1 ? "s" : ""})`
+                : "Ingrediente eliminado"
+            );
+          } catch (e) {
+            toast(e instanceof Error ? e.message : "No se pudo eliminar el ingrediente.", "error");
+            throw e;
           }
         }}
         title="Eliminar ingrediente"
-        message={`¿Seguro que quieres eliminar "${deleting?.name}"? Esta acción no se puede deshacer.`}
+        message={
+          (() => {
+            const uses = deleting ? recipeLines.filter((l) => l.ingredient_id === deleting.id).length : 0;
+            return uses > 0
+              ? `"${deleting?.name}" se usa en ${uses} receta${uses > 1 ? "s" : ""}. Si lo eliminas, se quitará de ellas y sus costos cambiarán. ¿Continuar?`
+              : `¿Seguro que quieres eliminar "${deleting?.name}"? Esta acción no se puede deshacer.`;
+          })()
+        }
       />
     </div>
   );

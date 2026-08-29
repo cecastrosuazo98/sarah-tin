@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
+import { InstallCard } from "@/components/pwa/InstallCard";
 import { useSettings, saveSettings, type Settings } from "@/lib/data/settings";
 import { usingSupabase } from "@/lib/data/client";
 import { PAYMENT_METHODS } from "@/lib/constants";
@@ -48,6 +49,8 @@ export default function ConfiguracionPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Configuración" subtitle="Ajusta tu negocio a tu gusto." />
+
+      <InstallCard />
 
       <Card className="animate-fade-up">
         <CardHeader className="flex-row items-center gap-2">

@@ -86,9 +86,13 @@ export default function ProductosPage() {
         open={!!deleting}
         onClose={() => setDeleting(null)}
         onConfirm={async () => {
-          if (deleting) {
+          if (!deleting) return;
+          try {
             await remove(TABLES.products, deleting.id);
             toast("Producto eliminado");
+          } catch (e) {
+            toast(e instanceof Error ? e.message : "No se pudo eliminar.", "error");
+            throw e;
           }
         }}
         title="Eliminar producto"
@@ -134,11 +138,15 @@ function ProductCard({
         </div>
       </div>
 
-      {econ.belowTarget && (
+      {econ.cost <= 0 ? (
+        <p className="mt-2 rounded-lg bg-[#FBF1DA] px-2 py-1 text-[0.7rem] font-medium text-gold-dark">
+          Sin costo: asóciale una receta o agrega el costo de sus ingredientes.
+        </p>
+      ) : econ.belowTarget ? (
         <p className="mt-2 rounded-lg bg-[#FBEDED] px-2 py-1 text-[0.7rem] font-medium text-danger">
           Bajo el margen objetivo ({formatPercent(targetMargin, 0)})
         </p>
-      )}
+      ) : null}
 
       <div className="mt-auto flex gap-2 border-t border-peach/50 pt-3">
         <Button variant="outline" size="sm" className="flex-1" onClick={onEdit}>

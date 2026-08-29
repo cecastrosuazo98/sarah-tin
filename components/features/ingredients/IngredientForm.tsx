@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AlertTriangle } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
@@ -31,6 +32,7 @@ export function IngredientForm({
   const [category, setCategory] = useState("");
   const [stock, setStock] = useState(0);
   const [minStock, setMinStock] = useState(0);
+  const [costPerUnit, setCostPerUnit] = useState(0); // costo por unidad base
   const [buyQty, setBuyQty] = useState(0);
   const [buyCost, setBuyCost] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -42,17 +44,22 @@ export function IngredientForm({
       setCategory(editing?.category ?? "");
       setStock(editing?.stock ?? 0);
       setMinStock(editing?.min_stock ?? 0);
-      // Costo por unidad base convertido a la unidad de compra habitual.
+      setCostPerUnit(editing?.cost_per_unit ?? 0);
       setBuyQty(0);
       setBuyCost(0);
     }
   }, [open, editing]);
 
-  // Unidad de compra amigable (kg/l/unidad) para calcular costo por base.
+  // Unidad de compra amigable (kg/l/unidad) para mostrar y calcular el costo.
   const buyUnitFactor = base === "unidad" ? 1 : 1000; // 1 kg=1000g, 1 l=1000ml
   const buyUnitLabel = base === "g" ? "kg" : base === "ml" ? "l" : "un";
-  const computedCostPerUnit =
-    buyQty > 0 ? buyCost / (buyQty * buyUnitFactor) : editing?.cost_per_unit ?? 0;
+  const friendlyCost = Math.round(costPerUnit * buyUnitFactor);
+
+  const calcFromPurchase = () => {
+    if (buyQty > 0 && buyCost > 0) {
+      setCostPerUnit(buyCost / (buyQty * buyUnitFactor));
+    }
+  };
 
   const save = async () => {
     if (!name.trim()) {
@@ -67,7 +74,7 @@ export function IngredientForm({
         unit: base,
         stock,
         min_stock: minStock,
-        cost_per_unit: computedCostPerUnit,
+        cost_per_unit: costPerUnit,
       };
       if (editing) {
         await update(TABLES.ingredients, editing.id, payload);
@@ -76,13 +83,13 @@ export function IngredientForm({
         await create(TABLES.ingredients, {
           ...payload,
           supplier: null,
-          last_purchase_at: buyQty > 0 ? new Date().toISOString() : null,
+          last_purchase_at: null,
         });
         toast("Ingrediente agregado 💕");
       }
       onClose();
-    } catch {
-      toast("No pudimos guardar. Intenta de nuevo.", "error");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "No pudimos guardar. Intenta de nuevo.", "error");
     } finally {
       setSaving(false);
     }
@@ -128,23 +135,43 @@ export function IngredientForm({
         </div>
 
         <div className="rounded-2xl border border-peach/60 bg-peach-light/40 p-4">
-          <p className="mb-2 text-sm font-semibold text-cocoa">Costo (opcional)</p>
-          <p className="mb-3 text-xs text-cocoa-light">
-            Ingresa cuánto compraste y su precio; calculamos el costo por unidad.
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={`Compré (${buyUnitLabel})`}>
-              <NumberInput value={buyQty} onChange={setBuyQty} suffix={buyUnitLabel} />
-            </Field>
-            <Field label="Precio total">
-              <MoneyInput value={buyCost} onChange={setBuyCost} />
-            </Field>
-          </div>
-          {computedCostPerUnit > 0 && (
-            <p className="mt-2 text-sm font-semibold text-success">
-              ≈ {formatMoney(computedCostPerUnit * buyUnitFactor)} por {buyUnitLabel}
+          <Field
+            label={`Costo por ${buyUnitLabel}`}
+            hint="Necesario para calcular el costo de tus recetas y productos."
+          >
+            <MoneyInput value={friendlyCost} onChange={(v) => setCostPerUnit(v / buyUnitFactor)} />
+          </Field>
+
+          {friendlyCost <= 0 && (
+            <p className="mt-2 flex items-center gap-1.5 rounded-lg bg-[#FBF1DA] px-2.5 py-1.5 text-xs font-medium text-gold-dark">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              Sin costo, tus recetas y productos quedarán en $0.
             </p>
           )}
+
+          <details className="mt-3 text-sm">
+            <summary className="cursor-pointer text-xs font-semibold text-sarah-dark">
+              ¿No sabes el costo por {buyUnitLabel}? Calcúlalo desde una compra
+            </summary>
+            <div className="mt-2 grid grid-cols-2 gap-3">
+              <Field label={`Compré (${buyUnitLabel})`}>
+                <NumberInput value={buyQty} onChange={setBuyQty} suffix={buyUnitLabel} />
+              </Field>
+              <Field label="Precio total">
+                <MoneyInput value={buyCost} onChange={setBuyCost} />
+              </Field>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-2 w-full"
+              onClick={calcFromPurchase}
+              disabled={buyQty <= 0 || buyCost <= 0}
+            >
+              Calcular: {formatMoney(buyQty > 0 ? Math.round(buyCost / buyQty) : 0)} por {buyUnitLabel}
+            </Button>
+          </details>
         </div>
       </div>
     </Modal>

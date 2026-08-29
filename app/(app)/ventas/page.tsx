@@ -119,11 +119,16 @@ export default function VentasPage() {
         onClose={() => setDeleting(null)}
         onConfirm={async () => {
           if (!deleting) return;
-          for (const it of saleItems.filter((x) => x.sale_id === deleting.id)) {
-            await remove(TABLES.sale_items, it.id);
+          try {
+            for (const it of saleItems.filter((x) => x.sale_id === deleting.id)) {
+              await remove(TABLES.sale_items, it.id);
+            }
+            await remove(TABLES.sales, deleting.id);
+            toast("Venta eliminada");
+          } catch (e) {
+            toast(e instanceof Error ? e.message : "No se pudo eliminar.", "error");
+            throw e;
           }
-          await remove(TABLES.sales, deleting.id);
-          toast("Venta eliminada");
         }}
         title="Eliminar venta"
         message="¿Eliminar esta venta? Esta acción no se puede deshacer."

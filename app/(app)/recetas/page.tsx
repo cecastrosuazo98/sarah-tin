@@ -110,11 +110,16 @@ export default function RecetasPage() {
         onClose={() => setDeleting(null)}
         onConfirm={async () => {
           if (!deleting) return;
-          for (const l of allLines.filter((x) => x.recipe_id === deleting.id)) {
-            await remove(TABLES.recipe_ingredients, l.id);
+          try {
+            for (const l of allLines.filter((x) => x.recipe_id === deleting.id)) {
+              await remove(TABLES.recipe_ingredients, l.id);
+            }
+            await remove(TABLES.recipes, deleting.id);
+            toast("Receta eliminada");
+          } catch (e) {
+            toast(e instanceof Error ? e.message : "No se pudo eliminar.", "error");
+            throw e;
           }
-          await remove(TABLES.recipes, deleting.id);
-          toast("Receta eliminada");
         }}
         title="Eliminar receta"
         message={`¿Eliminar "${deleting?.name}"? Los productos que la usan quedarán sin receta asociada.`}

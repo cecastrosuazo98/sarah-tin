@@ -8,10 +8,11 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Aplica a todo excepto:
+     * Aplica a todo excepto archivos que deben servirse sin autenticación:
      * - _next/static, _next/image
-     * - favicon e imágenes públicas
+     * - favicon, sw.js, manifest y assets de la PWA (icons/*)
+     * - imágenes, fuentes y otros estáticos por extensión
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|json|txt|xml|webmanifest|woff|woff2|ttf)$).*)",
   ],
 };
