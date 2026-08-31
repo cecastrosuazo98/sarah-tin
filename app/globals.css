@@ -22,8 +22,8 @@
   body {
     @apply bg-cream text-cocoa antialiased;
     background-image:
-      radial-gradient(120% 120% at 100% 0%, rgba(231, 159, 190, 0.08) 0%, transparent 45%),
-      radial-gradient(120% 120% at 0% 100%, rgba(169, 212, 222, 0.1) 0%, transparent 45%);
+      radial-gradient(120% 120% at 100% 0%, rgba(210, 77, 119, 0.08) 0%, transparent 45%),
+      radial-gradient(120% 120% at 0% 100%, rgba(143, 167, 184, 0.1) 0%, transparent 45%);
     background-attachment: fixed;
     min-height: 100dvh;
   }

@@ -19,30 +19,31 @@ const config: Config = {
     },
     extend: {
       colors: {
-        // Superficies
+        // Superficies (fondo blush claro, derivado del coral del logo)
         cream: {
-          DEFAULT: "#FBF3E8",
-          50: "#FFFDF8",
-          100: "#FBF3E8",
-          200: "#F5E8D5",
+          DEFAULT: "#FDF2F0",
+          50: "#FFF9F8",
+          100: "#FDF2F0",
+          200: "#FAE6E3",
         },
         peach: {
-          DEFAULT: "#F7E0C3",
-          light: "#FBEBD7",
-          dark: "#EFCFA6",
+          DEFAULT: "#F8DAD7",
+          light: "#FCEAE8",
+          dark: "#EEC4C0",
         },
-        // Marca
+        // Marca — rosa frambuesa (Sarah) del texto del logo
         sarah: {
-          DEFAULT: "#E79FBE",
-          light: "#F4C9DA",
-          dark: "#D97DA6",
-          50: "#FCEFF4",
+          DEFAULT: "#D24D77",
+          light: "#EDA6C1",
+          dark: "#B0355E",
+          50: "#FBEDF2",
         },
+        // Tin — azul grisáceo suave (peto de Tin)
         tin: {
-          DEFAULT: "#A9D4DE",
-          light: "#CFE7ED",
-          dark: "#7FB9C7",
-          50: "#EAF5F7",
+          DEFAULT: "#8FA7B8",
+          light: "#C4D3DC",
+          dark: "#6E8898",
+          50: "#EFF4F7",
         },
         gold: {
           DEFAULT: "#C9A24B",
@@ -54,10 +55,10 @@ const config: Config = {
           light: "#8A6A50",
           soft: "#B79C86",
         },
-        // Estados semánticos suaves
-        success: "#7BAE7F",
+        // Estados semánticos
+        success: "#6FAE7F",
         warning: "#E0A250",
-        danger: "#D98C8C",
+        danger: "#DB5A5A",
       },
       fontFamily: {
         sans: ["var(--font-nunito)", "system-ui", "sans-serif"],

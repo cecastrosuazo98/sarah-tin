@@ -37,16 +37,16 @@ export function Brandmark({
     >
       {/* Fallback dibujado (solo visible si el logo no carga). */}
       <svg viewBox="0 0 100 100" className="h-full w-full" aria-hidden>
-        <circle cx="50" cy="50" r="50" fill="#F7E0C3" />
-        <path d="M34 58 h32 l-5 24 a4 4 0 0 1 -4 3 h-14 a4 4 0 0 1 -4 -3 z" fill="#D9B79A" />
-        <path d="M32 58 q-6 -10 4 -14 q-2 -12 12 -12 q14 -1 14 11 q10 2 6 15 z" fill="#E79FBE" />
-        <circle cx="50" cy="32" r="5" fill="#D97DA6" />
+        <circle cx="50" cy="50" r="50" fill="#F2908E" />
+        <path d="M34 58 h32 l-5 24 a4 4 0 0 1 -4 3 h-14 a4 4 0 0 1 -4 -3 z" fill="#F0D8C4" />
+        <path d="M32 58 q-6 -10 4 -14 q-2 -12 12 -12 q14 -1 14 11 q10 2 6 15 z" fill="#EDA6C1" />
+        <circle cx="50" cy="32" r="5" fill="#C13B6A" />
       </svg>
 
       {/* Logo oficial. Con zoom a los dos niños cuando crop está activo. */}
       {!failed && (
         <Image
-          src="/logo.png"
+          src="/logo1.png"
           alt="Sarah & Tin"
           fill
           sizes={`${Math.round(size * 2)}px`}
@@ -55,7 +55,7 @@ export function Brandmark({
           className="object-cover"
           style={
             crop
-              ? { transform: "scale(2.4)", transformOrigin: "50% 11%" }
+              ? { transform: "scale(2.19)", transformOrigin: "50% 26%" }
               : undefined
           }
         />
