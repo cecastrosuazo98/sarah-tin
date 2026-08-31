@@ -5,6 +5,7 @@ import { Sparkles, AlertTriangle } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { SearchSelect } from "@/components/ui/search-select";
 import { MoneyInput, NumberInput } from "@/components/ui/money-input";
 import { useToast } from "@/components/ui/toast";
 import { useTable } from "@/lib/data/hooks";
@@ -134,12 +135,16 @@ export function ProductForm({
         </div>
 
         <Field label="Receta asociada" hint="Opcional: usa el costo de una receta.">
-          <Select value={recipeId} onChange={(e) => setRecipeId(e.target.value)}>
-            <option value="">Sin receta</option>
-            {recipes.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </Select>
+          <SearchSelect
+            value={recipeId}
+            onChange={setRecipeId}
+            placeholder="Sin receta"
+            searchPlaceholder="Buscar receta…"
+            options={[
+              { value: "", label: "Sin receta" },
+              ...recipes.map((r) => ({ value: r.id, label: r.name })),
+            ]}
+          />
         </Field>
 
         <div className="grid grid-cols-2 gap-3">

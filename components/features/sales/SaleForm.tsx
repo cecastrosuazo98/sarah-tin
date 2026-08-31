@@ -5,6 +5,7 @@ import { Plus, Minus, Trash2, ShoppingCart } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Field, Select } from "@/components/ui/field";
+import { SearchSelect } from "@/components/ui/search-select";
 import { MoneyInput } from "@/components/ui/money-input";
 import { useToast } from "@/components/ui/toast";
 import { useTable } from "@/lib/data/hooks";
@@ -111,24 +112,28 @@ export function SaleForm({ open, onClose }: { open: boolean; onClose: () => void
     >
       <div className="space-y-4">
         <Field label="Cliente" hint="Opcional (obligatorio si es fiado).">
-          <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-            <option value="">Sin cliente</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </Select>
+          <SearchSelect
+            value={customerId}
+            onChange={setCustomerId}
+            placeholder="Sin cliente"
+            searchPlaceholder="Buscar cliente…"
+            options={[
+              { value: "", label: "Sin cliente" },
+              ...customers.map((c) => ({ value: c.id, label: c.name, hint: c.phone ?? undefined })),
+            ]}
+          />
         </Field>
 
         <Field label="Agregar producto">
-          <Select
+          <SearchSelect
             value=""
-            onChange={(e) => { addProduct(e.target.value); e.target.value = ""; }}
-          >
-            <option value="">Elige un producto…</option>
-            {products.filter((p) => p.is_active).map((p) => (
-              <option key={p.id} value={p.id}>{p.name} · {formatMoney(p.sale_price)}</option>
-            ))}
-          </Select>
+            onChange={(v) => addProduct(v)}
+            placeholder="Escribe o elige un producto…"
+            searchPlaceholder="Buscar producto…"
+            options={products
+              .filter((p) => p.is_active)
+              .map((p) => ({ value: p.id, label: p.name, hint: formatMoney(p.sale_price) }))}
+          />
         </Field>
 
         {cart.length === 0 ? (

@@ -5,6 +5,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { SearchSelect } from "@/components/ui/search-select";
 import { NumberInput } from "@/components/ui/money-input";
 import { useToast } from "@/components/ui/toast";
 import { useTable } from "@/lib/data/hooks";
@@ -169,23 +170,22 @@ export function RecipeForm({
               return (
                 <div key={idx} className="flex items-end gap-2 rounded-xl border border-peach/50 bg-white/60 p-2">
                   <div className="flex-1">
-                    <Select
+                    <SearchSelect
                       value={line.ingredient_id}
-                      onChange={(e) => {
-                        const newIng = ingredients.find((i) => i.id === e.target.value);
+                      placeholder="Elige ingrediente…"
+                      searchPlaceholder="Buscar ingrediente…"
+                      options={ingredients.map((i) => ({ value: i.id, label: i.name, hint: i.category ?? undefined }))}
+                      onChange={(val) => {
+                        const newIng = ingredients.find((i) => i.id === val);
                         setLines((ls) =>
                           ls.map((l, i) =>
                             i === idx
-                              ? { ...l, ingredient_id: e.target.value, unit: newIng ? compatibleUnits(newIng.unit)[0] : l.unit }
+                              ? { ...l, ingredient_id: val, unit: newIng ? compatibleUnits(newIng.unit)[0] : l.unit }
                               : l
                           )
                         );
                       }}
-                    >
-                      {ingredients.map((i) => (
-                        <option key={i.id} value={i.id}>{i.name}</option>
-                      ))}
-                    </Select>
+                    />
                   </div>
                   <div className="w-20">
                     <NumberInput

@@ -8,21 +8,27 @@ import { SearchBar } from "@/components/shared/SearchBar";
 import { matchesSearch } from "@/lib/search";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
 import { CustomerForm } from "@/components/features/customers/CustomerForm";
 import { CustomerDetail } from "@/components/features/customers/CustomerDetail";
 import { useTable } from "@/lib/data/hooks";
 import { useAutoOpen } from "@/lib/hooks/useAutoOpen";
+import { remove } from "@/lib/data/client";
+import { getErrorMessage } from "@/lib/data/error";
 import { TABLES } from "@/lib/data/types";
 import type { Customer, Sale } from "@/lib/data/types";
 import { customerDebt, totalReceivable } from "@/lib/domain/finance";
 import { formatMoney } from "@/lib/format";
 
 export default function ClientesPage() {
+  const toast = useToast();
   const { data: customers, loading } = useTable<Customer>(TABLES.customers);
   const { data: sales } = useTable<Sale>(TABLES.sales);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [detail, setDetail] = useState<Customer | null>(null);
+  const [deleting, setDeleting] = useState<Customer | null>(null);
   const [query, setQuery] = useState("");
   useAutoOpen(() => setFormOpen(true));
 
@@ -98,6 +104,28 @@ export default function ClientesPage() {
         customer={detail}
         onClose={() => setDetail(null)}
         onEdit={(c) => { setDetail(null); setEditing(c); setFormOpen(true); }}
+        onDelete={(c) => { setDetail(null); setDeleting(c); }}
+      />
+
+      <ConfirmDialog
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        onConfirm={async () => {
+          if (!deleting) return;
+          try {
+            await remove(TABLES.customers, deleting.id);
+            toast("Cliente eliminado");
+          } catch (e) {
+            toast(getErrorMessage(e, "No se pudo eliminar el cliente."), "error");
+            throw e;
+          }
+        }}
+        title="Eliminar cliente"
+        message={
+          deleting && customerDebt(deleting.id, sales) > 0
+            ? `${deleting.name} tiene una deuda de ${formatMoney(customerDebt(deleting.id, sales))}. Si lo eliminas, se perderá ese registro y sus ventas quedarán sin cliente. ¿Continuar?`
+            : `¿Eliminar a ${deleting?.name}? Sus ventas quedarán registradas como "sin cliente". Esta acción no se puede deshacer.`
+        }
       />
     </div>
   );

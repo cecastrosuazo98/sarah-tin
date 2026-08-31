@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { Field, Input, Textarea } from "@/components/ui/field";
+import { SearchSelect } from "@/components/ui/search-select";
 import { MoneyInput, NumberInput } from "@/components/ui/money-input";
 import { useToast } from "@/components/ui/toast";
 import { useTable } from "@/lib/data/hooks";
@@ -98,12 +99,16 @@ export function OrderForm({ open, onClose }: { open: boolean; onClose: () => voi
     >
       <div className="space-y-4">
         <Field label="Cliente">
-          <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-            <option value="">Sin cliente</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </Select>
+          <SearchSelect
+            value={customerId}
+            onChange={setCustomerId}
+            placeholder="Sin cliente"
+            searchPlaceholder="Buscar cliente…"
+            options={[
+              { value: "", label: "Sin cliente" },
+              ...customers.map((c) => ({ value: c.id, label: c.name, hint: c.phone ?? undefined })),
+            ]}
+          />
         </Field>
 
         <div className="grid grid-cols-2 gap-3">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Banknote, MessageCircle, Pencil, Phone, MapPin } from "lucide-react";
+import { Banknote, MessageCircle, Pencil, Phone, MapPin, Trash2 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,10 +18,12 @@ export function CustomerDetail({
   customer,
   onClose,
   onEdit,
+  onDelete,
 }: {
   customer: Customer | null;
   onClose: () => void;
   onEdit: (c: Customer) => void;
+  onDelete: (c: Customer) => void;
 }) {
   const { data: sales } = useTable<Sale>(TABLES.sales);
   const { data: saleItems } = useTable<SaleItem>(TABLES.sale_items);
@@ -146,6 +148,16 @@ export function CustomerDetail({
                 </div>
               </div>
             )}
+
+            <div className="border-t border-peach/50 pt-3">
+              <button
+                type="button"
+                onClick={() => onDelete(customer)}
+                className="flex w-full items-center justify-center gap-2 rounded-xl py-2 text-sm font-semibold text-danger transition hover:bg-[#FBEDED]"
+              >
+                <Trash2 className="h-4 w-4" /> Eliminar cliente
+              </button>
+            </div>
           </div>
         )}
       </Modal>
