@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   TrendingUp,
   Receipt,
@@ -88,14 +88,19 @@ export default function DashboardPage() {
   const isEmpty =
     sales.length === 0 && products.length === 0 && customers.length === 0;
 
+  // La fecha/saludo dependen de la hora local del navegador: se calculan solo
+  // en el cliente para evitar diferencias con el HTML del servidor (hidratación).
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => setNow(new Date()), []);
+
   return (
     <div className="space-y-6">
       <header className="animate-fade-up">
-        <p className="text-sm font-medium text-cocoa-light">
-          {formatDateLong(new Date())}
+        <p className="min-h-[1.25rem] text-sm font-medium text-cocoa-light">
+          {now ? formatDateLong(now) : ""}
         </p>
         <h1 className="mt-0.5 font-display text-2xl font-extrabold text-cocoa sm:text-3xl">
-          {greeting()}, {DEFAULT_USER_NAME} <span aria-hidden>💕</span>
+          {now ? greeting(now) : "Hola"}, {DEFAULT_USER_NAME} <span aria-hidden>💕</span>
         </h1>
         <p className="mt-1 text-cocoa-light">Este es el resumen de tu día.</p>
       </header>
