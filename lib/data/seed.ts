@@ -116,16 +116,6 @@ salesRaw.forEach((s, i) => {
   });
 });
 
-// --- Caja ---
-const REG = "seed-reg-1";
-const cash_registers = [
-  { id: REG, ...base, opened_at: iso(0), closed_at: null, opening_balance: 20000, closing_balance: null, is_open: true },
-];
-const cash_movements = [
-  { id: "seed-cm-1", ...base, register_id: REG, type: "ingreso", category: "Venta", description: "Ventas del día", amount: 35000, method: "efectivo", reference: null },
-  { id: "seed-cm-2", ...base, register_id: REG, type: "egreso", category: "Ingredientes", description: "Compra huevos", amount: 8000, method: "efectivo", reference: null },
-];
-
 // --- Gastos ---
 const expenses = [
   { id: "seed-exp-1", ...base, category: "Ingredientes", description: "Compra de harina y azúcar", amount: 11000, expense_date: ymd(-6) },
@@ -154,8 +144,6 @@ export function buildSeed(): Record<string, Record<string, unknown>[]> {
     [TABLES.customers]: customers,
     [TABLES.sales]: sales.map((s) => ({ ...base, ...s })),
     [TABLES.sale_items]: sale_items.map((s) => ({ ...base, ...s })),
-    [TABLES.cash_registers]: cash_registers,
-    [TABLES.cash_movements]: cash_movements,
     [TABLES.expenses]: expenses,
     [TABLES.orders]: orders,
     [TABLES.order_items]: order_items,

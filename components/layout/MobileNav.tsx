@@ -8,7 +8,6 @@ import {
   MoreHorizontal,
   X,
   ShoppingCart,
-  ArrowDownCircle,
   Receipt,
   UserPlus,
   Banknote,
@@ -21,7 +20,6 @@ import { signOut } from "@/lib/actions/auth";
 
 const QUICK_ADD = [
   { label: "Venta", icon: ShoppingCart, href: "/ventas?nuevo=1", tone: "bg-sarah text-white" },
-  { label: "Ingreso", icon: ArrowDownCircle, href: "/caja", tone: "bg-tin text-cocoa" },
   { label: "Gasto", icon: Receipt, href: "/gastos?nuevo=1", tone: "bg-gold text-white" },
   { label: "Cliente", icon: UserPlus, href: "/clientes?nuevo=1", tone: "bg-sarah-dark text-white" },
   { label: "Pago", icon: Banknote, href: "/clientes", tone: "bg-success text-white" },

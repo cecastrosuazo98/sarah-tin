@@ -1,13 +1,11 @@
 /**
- * Agregaciones financieras: dashboard, deudas, caja, rentabilidad.
+ * Agregaciones financieras: dashboard, deudas, rentabilidad.
  * Funciones puras sobre las filas del store.
  */
 import type {
   Sale,
   SaleItem,
   Expense,
-  CashMovement,
-  CashRegister,
   Customer,
   Payment,
 } from "@/lib/data/types";
@@ -44,30 +42,12 @@ export function totalReceivable(sales: Sale[]): number {
     .reduce((sum, s) => sum + Math.max(s.total - s.paid_amount, 0), 0);
 }
 
-/** Saldo actual de caja (registro abierto). */
-export function cashBalance(
-  registers: CashRegister[],
-  movements: CashMovement[]
-): number {
-  const open = registers.find((r) => r.is_open);
-  if (!open) return 0;
-  const movs = movements.filter((m) => m.register_id === open.id);
-  const ingresos = movs
-    .filter((m) => m.type === "ingreso")
-    .reduce((s, m) => s + m.amount, 0);
-  const egresos = movs
-    .filter((m) => m.type === "egreso")
-    .reduce((s, m) => s + m.amount, 0);
-  return open.opening_balance + ingresos - egresos;
-}
-
 export interface DashboardData {
   salesToday: number;
   salesWeek: number;
   salesMonth: number;
   expensesMonth: number;
   estimatedProfit: number;
-  cashBalance: number;
   receivable: number;
   productsSoldToday: number;
   monthGrowth: number | null;
@@ -77,14 +57,14 @@ export function computeDashboard(params: {
   sales: Sale[];
   saleItems: SaleItem[];
   expenses: Expense[];
-  registers: CashRegister[];
-  movements: CashMovement[];
 }): DashboardData {
-  const { sales, saleItems, expenses, registers, movements } = params;
+  const { sales, saleItems, expenses } = params;
   const now = new Date();
-  const today = { from: startOfDay(now), to: now };
-  const week = { from: startOfWeek(now), to: now };
-  const month = { from: startOfMonth(now), to: now };
+  const endToday = new Date(now);
+  endToday.setHours(23, 59, 59, 999);
+  const today = { from: startOfDay(now), to: endToday };
+  const week = { from: startOfWeek(now), to: endToday };
+  const month = { from: startOfMonth(now), to: endToday };
 
   const salesToday = sumInRange(sales, today.from, today.to);
   const salesWeek = sumInRange(sales, week.from, week.to);
@@ -113,7 +93,6 @@ export function computeDashboard(params: {
     salesMonth,
     expensesMonth,
     estimatedProfit: salesMonth - expensesMonth,
-    cashBalance: cashBalance(registers, movements),
     receivable: totalReceivable(sales),
     productsSoldToday,
     monthGrowth,

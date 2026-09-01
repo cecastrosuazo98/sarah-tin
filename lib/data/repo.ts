@@ -19,8 +19,6 @@ import type {
   Payment,
   Ingredient,
   IngredientPurchase,
-  CashRegister,
-  CashMovement,
   Expense,
   Order,
   OrderItem,
@@ -91,72 +89,6 @@ async function applyStockForItems(
   }
 }
 
-// ---------------- Caja ----------------
-
-export async function getOpenRegister(): Promise<CashRegister | null> {
-  const regs = await list<CashRegister>(TABLES.cash_registers);
-  return regs.find((r) => r.is_open) ?? null;
-}
-
-async function addCashMovementFor(
-  register: CashRegister | null,
-  mov: {
-    type: "ingreso" | "egreso";
-    amount: number;
-    method: PaymentMethod;
-    category?: string;
-    description?: string;
-    reference?: string;
-  }
-): Promise<void> {
-  if (!register) return;
-  await createSilent<CashMovement>(TABLES.cash_movements, {
-    register_id: register.id,
-    type: mov.type,
-    amount: mov.amount,
-    method: mov.method,
-    category: mov.category ?? null,
-    description: mov.description ?? null,
-    reference: mov.reference ?? null,
-  });
-}
-
-export async function openCashRegister(opening: number): Promise<void> {
-  const current = await getOpenRegister();
-  if (current) throw new Error("Ya tienes una caja abierta.");
-  await create<CashRegister>(TABLES.cash_registers, {
-    opened_at: new Date().toISOString(),
-    closed_at: null,
-    opening_balance: opening,
-    closing_balance: null,
-    is_open: true,
-  });
-}
-
-export async function closeCashRegister(
-  registerId: string,
-  closing: number
-): Promise<void> {
-  await update<CashRegister>(TABLES.cash_registers, registerId, {
-    is_open: false,
-    closed_at: new Date().toISOString(),
-    closing_balance: closing,
-  });
-}
-
-export async function addCashMovement(input: {
-  type: "ingreso" | "egreso";
-  amount: number;
-  method: PaymentMethod;
-  category?: string;
-  description?: string;
-}): Promise<void> {
-  const reg = await getOpenRegister();
-  if (!reg) throw new Error("Abre la caja primero para registrar movimientos.");
-  await addCashMovementFor(reg, input);
-  emitChange();
-}
-
 // ---------------- Ventas ----------------
 
 export interface NewSaleInput {
@@ -201,18 +133,6 @@ export async function createSale(input: NewSaleInput): Promise<Sale> {
 
   // Descuenta inventario: stock de productos e ingredientes (según receta).
   await applyStockForItems(input.items, -1);
-
-  // Ingreso a caja por el monto pagado en efectivo.
-  if (paid > 0 && input.method === "efectivo") {
-    const reg = await getOpenRegister();
-    await addCashMovementFor(reg, {
-      type: "ingreso",
-      amount: paid,
-      method: "efectivo",
-      category: "Venta",
-      description: "Venta registrada",
-    });
-  }
 
   emitChange();
   return sale;
@@ -279,17 +199,6 @@ export async function registerPayment(input: {
     remaining -= applied;
   }
 
-  if (input.method === "efectivo") {
-    const reg = await getOpenRegister();
-    await addCashMovementFor(reg, {
-      type: "ingreso",
-      amount: input.amount,
-      method: "efectivo",
-      category: "Pago de deuda",
-      description: "Abono de cliente",
-    });
-  }
-
   emitChange();
 }
 
@@ -302,7 +211,6 @@ export async function registerPurchase(input: {
   totalCost: number;
   supplier?: string;
   registerAsExpense?: boolean;
-  payFromCash?: boolean;
 }): Promise<void> {
   const ingredients = await list<Ingredient>(TABLES.ingredients);
   const ing = ingredients.find((i) => i.id === input.ingredientId);
@@ -335,17 +243,6 @@ export async function registerPurchase(input: {
     });
   }
 
-  if (input.payFromCash) {
-    const reg = await getOpenRegister();
-    await addCashMovementFor(reg, {
-      type: "egreso",
-      amount: input.totalCost,
-      method: "efectivo",
-      category: "Ingredientes",
-      description: `Compra: ${ing.name}`,
-    });
-  }
-
   emitChange();
 }
 
@@ -356,7 +253,6 @@ export async function addExpense(input: {
   description: string;
   amount: number;
   date?: string;
-  payFromCash?: boolean;
 }): Promise<void> {
   await createSilent<Expense>(TABLES.expenses, {
     category: input.category,
@@ -364,16 +260,6 @@ export async function addExpense(input: {
     amount: input.amount,
     expense_date: input.date ?? new Date().toISOString().slice(0, 10),
   });
-  if (input.payFromCash) {
-    const reg = await getOpenRegister();
-    await addCashMovementFor(reg, {
-      type: "egreso",
-      amount: input.amount,
-      method: "efectivo",
-      category: input.category,
-      description: input.description,
-    });
-  }
   emitChange();
 }
 

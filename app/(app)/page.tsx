@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import {
-  Wallet,
   TrendingUp,
   Receipt,
   HandCoins,
@@ -40,8 +39,6 @@ import type {
   Sale,
   SaleItem,
   Expense,
-  CashRegister,
-  CashMovement,
   Customer,
   Order,
   Ingredient,
@@ -57,16 +54,14 @@ export default function DashboardPage() {
   const { data: sales } = useTable<Sale>(TABLES.sales);
   const { data: saleItems } = useTable<SaleItem>(TABLES.sale_items);
   const { data: expenses } = useTable<Expense>(TABLES.expenses);
-  const { data: registers } = useTable<CashRegister>(TABLES.cash_registers);
-  const { data: movements } = useTable<CashMovement>(TABLES.cash_movements);
   const { data: customers } = useTable<Customer>(TABLES.customers);
   const { data: orders } = useTable<Order>(TABLES.orders);
   const { data: ingredients } = useTable<Ingredient>(TABLES.ingredients);
   const { products } = useProductsEconomics();
 
   const summary = useMemo(
-    () => computeDashboard({ sales, saleItems, expenses, registers, movements }),
-    [sales, saleItems, expenses, registers, movements]
+    () => computeDashboard({ sales, saleItems, expenses }),
+    [sales, saleItems, expenses]
   );
   const chart = useMemo(() => salesByDay(sales, 7), [sales]);
   const top = useMemo(() => topProducts(saleItems, 4), [saleItems]);
@@ -173,26 +168,26 @@ export default function DashboardPage() {
 
             <Card className="animate-fade-up">
               <CardHeader>
-                <CardTitle>Dinero disponible</CardTitle>
+                <CardTitle>Resumen del mes</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center gap-3 rounded-xl bg-success/10 p-3">
-                  <Wallet className="h-6 w-6 text-success" />
+                <div className="flex items-center gap-3 rounded-xl bg-sarah-50 p-3">
+                  <TrendingUp className="h-6 w-6 text-sarah-dark" />
                   <div>
-                    <p className="text-xs text-cocoa-light">En caja ahora</p>
+                    <p className="text-xs text-cocoa-light">Ventas del mes</p>
                     <p className="font-display text-xl font-extrabold text-cocoa">
-                      {formatMoney(summary.cashBalance)}
+                      {formatMoney(summary.salesMonth)}
                     </p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-center">
                   <div className="rounded-xl bg-peach-light/60 p-3">
-                    <p className="text-xs text-cocoa-light">Ventas mes</p>
-                    <p className="font-bold text-cocoa">{formatMoney(summary.salesMonth)}</p>
-                  </div>
-                  <div className="rounded-xl bg-peach-light/60 p-3">
                     <p className="text-xs text-cocoa-light">Ganancia mes</p>
                     <p className="font-bold text-success">{formatMoney(summary.estimatedProfit)}</p>
+                  </div>
+                  <div className="rounded-xl bg-peach-light/60 p-3">
+                    <p className="text-xs text-cocoa-light">Por cobrar</p>
+                    <p className="font-bold text-danger">{formatMoney(summary.receivable)}</p>
                   </div>
                 </div>
               </CardContent>

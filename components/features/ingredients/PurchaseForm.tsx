@@ -26,7 +26,6 @@ export function PurchaseForm({
   const [unit, setUnit] = useState<MeasureUnit>(units[units.length - 1]);
   const [cost, setCost] = useState(0);
   const [asExpense, setAsExpense] = useState(true);
-  const [fromCash, setFromCash] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -36,7 +35,6 @@ export function PurchaseForm({
       setQty(0);
       setCost(0);
       setAsExpense(true);
-      setFromCash(false);
     }
   }, [open, ingredient]);
 
@@ -54,7 +52,6 @@ export function PurchaseForm({
         unit,
         totalCost: cost,
         registerAsExpense: asExpense,
-        payFromCash: fromCash,
       });
       toast("Compra registrada 💕");
       onClose();
@@ -97,10 +94,6 @@ export function PurchaseForm({
         <label className="flex items-center gap-2 text-sm text-cocoa">
           <input type="checkbox" checked={asExpense} onChange={(e) => setAsExpense(e.target.checked)} className="h-4 w-4 accent-sarah" />
           Registrar también como gasto
-        </label>
-        <label className="flex items-center gap-2 text-sm text-cocoa">
-          <input type="checkbox" checked={fromCash} onChange={(e) => setFromCash(e.target.checked)} className="h-4 w-4 accent-sarah" />
-          Pagar desde la caja (efectivo)
         </label>
       </div>
     </Modal>

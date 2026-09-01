@@ -36,7 +36,6 @@ export default function GastosPage() {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState(0);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [fromCash, setFromCash] = useState(false);
 
   const [query, setQuery] = useState("");
   const sorted = useMemo(
@@ -55,12 +54,11 @@ export default function GastosPage() {
       return;
     }
     try {
-      await addExpense({ category, description: description.trim(), amount, date, payFromCash: fromCash });
+      await addExpense({ category, description: description.trim(), amount, date });
       toast("Gasto registrado 💕");
       setOpen(false);
       setDescription("");
       setAmount(0);
-      setFromCash(false);
     } catch (e) {
       toast(getErrorMessage(e, "No se pudo registrar el gasto."), "error");
     }
@@ -148,10 +146,6 @@ export default function GastosPage() {
           <Field label="Fecha">
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </Field>
-          <label className="flex items-center gap-2 text-sm text-cocoa">
-            <input type="checkbox" checked={fromCash} onChange={(e) => setFromCash(e.target.checked)} className="h-4 w-4 accent-sarah" />
-            Pagar desde la caja (efectivo)
-          </label>
         </div>
       </Modal>
 

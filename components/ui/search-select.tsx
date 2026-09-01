@@ -67,15 +67,26 @@ export function SearchSelect({
       if (rootRef.current?.contains(t) || menuRef.current?.contains(t)) return;
       close();
     };
-    const onScrollResize = () => close();
+    // Al hacer scroll o cambiar el tamaño (ej: teclado del móvil) el menú se
+    // REPOSICIONA en vez de cerrarse, para que no "se salga".
+    const onReposition = () => place();
+    // Escape cierra solo el menú, no el modal que lo contiene.
+    const onKeyCapture = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopImmediatePropagation();
+        close();
+      }
+    };
     document.addEventListener("mousedown", onDown);
-    window.addEventListener("resize", onScrollResize);
-    window.addEventListener("scroll", onScrollResize, true);
-    setTimeout(() => inputRef.current?.focus(), 0);
+    document.addEventListener("keydown", onKeyCapture, true);
+    window.addEventListener("resize", onReposition);
+    window.addEventListener("scroll", onReposition, true);
+    setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 0);
     return () => {
       document.removeEventListener("mousedown", onDown);
-      window.removeEventListener("resize", onScrollResize);
-      window.removeEventListener("scroll", onScrollResize, true);
+      document.removeEventListener("keydown", onKeyCapture, true);
+      window.removeEventListener("resize", onReposition);
+      window.removeEventListener("scroll", onReposition, true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
