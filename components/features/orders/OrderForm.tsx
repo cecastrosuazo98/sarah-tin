@@ -14,6 +14,8 @@ import { getErrorMessage } from "@/lib/data/error";
 import { TABLES } from "@/lib/data/types";
 import type { Customer, Product, Order } from "@/lib/data/types";
 import { formatMoney } from "@/lib/format";
+import { toYmd } from "@/lib/domain/dates";
+import { normalize } from "@/lib/search";
 
 type Line = { name: string; quantity: number; unitPrice: number; details: string };
 
@@ -24,7 +26,7 @@ export function OrderForm({ open, onClose }: { open: boolean; onClose: () => voi
   const { data: orders } = useTable<Order>(TABLES.orders);
 
   const [customerId, setCustomerId] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => toYmd(new Date()));
   const [time, setTime] = useState("");
   const [lines, setLines] = useState<Line[]>([{ name: "", quantity: 1, unitPrice: 0, details: "" }]);
   const [deposit, setDeposit] = useState(0);
@@ -34,13 +36,23 @@ export function OrderForm({ open, onClose }: { open: boolean; onClose: () => voi
   useEffect(() => {
     if (open) {
       setCustomerId("");
-      setDate(new Date().toISOString().slice(0, 10));
+      setDate(toYmd(new Date()));
       setTime("");
       setLines([{ name: "", quantity: 1, unitPrice: 0, details: "" }]);
       setDeposit(0);
       setNotes("");
     }
   }, [open]);
+
+  // Si el nombre coincide con un producto, el precio se completa solo.
+  const setName = (idx: number, name: string) =>
+    setLines((ls) =>
+      ls.map((l, i) => {
+        if (i !== idx) return l;
+        const p = products.find((x) => normalize(x.name).trim() === normalize(name).trim());
+        return { ...l, name, unitPrice: l.unitPrice || p?.sale_price || 0 };
+      })
+    );
 
   const total = useMemo(
     () => lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0),
@@ -72,7 +84,7 @@ export function OrderForm({ open, onClose }: { open: boolean; onClose: () => voi
         deposit,
         notes: notes.trim() || undefined,
       });
-      toast("Pedido creado 💕");
+      toast(`Pedido anotado para el ${new Date(date + "T00:00:00").toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" })}`);
       onClose();
     } catch (e) {
       toast(getErrorMessage(e, "No se pudo crear el pedido."), "error");
@@ -86,7 +98,7 @@ export function OrderForm({ open, onClose }: { open: boolean; onClose: () => voi
       open={open}
       onClose={onClose}
       size="lg"
-      title={`Nuevo pedido ${nextCode}`}
+      title="Nuevo pedido"
       footer={
         <>
           <div className="flex-1">
@@ -98,7 +110,7 @@ export function OrderForm({ open, onClose }: { open: boolean; onClose: () => voi
       }
     >
       <div className="space-y-4">
-        <Field label="Cliente">
+        <Field label="¿Para quién?">
           <SearchSelect
             value={customerId}
             onChange={setCustomerId}
@@ -112,16 +124,16 @@ export function OrderForm({ open, onClose }: { open: boolean; onClose: () => voi
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Fecha de entrega" required>
+          <Field label="¿Qué día lo entregas?" required>
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </Field>
-          <Field label="Hora">
+          <Field label="Hora (opcional)">
             <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
           </Field>
         </div>
 
         <div>
-          <p className="mb-2 text-sm font-semibold text-cocoa">Productos del pedido</p>
+          <p className="mb-2 text-sm font-semibold text-cocoa">¿Qué te encargaron?</p>
           <div className="space-y-2">
             {lines.map((line, idx) => (
               <div key={idx} className="space-y-2 rounded-xl border border-peach/50 bg-white/60 p-2.5">
@@ -129,15 +141,19 @@ export function OrderForm({ open, onClose }: { open: boolean; onClose: () => voi
                   <input
                     list="order-products"
                     value={line.name}
-                    onChange={(e) => setLines((ls) => ls.map((l, i) => (i === idx ? { ...l, name: e.target.value } : l)))}
-                    placeholder="Producto"
+                    onChange={(e) => setName(idx, e.target.value)}
+                    placeholder="Producto (ej: Torta de chocolate)"
                     className="h-10 flex-1 rounded-xl border border-peach-dark bg-white/80 px-3 text-sm text-cocoa focus:border-sarah focus:outline-none focus:ring-2 focus:ring-sarah/30"
                   />
                   <button onClick={() => setLines((ls) => ls.filter((_, i) => i !== idx))} className="text-danger" aria-label="Quitar">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-cocoa-light">
+                  <span>Cantidad</span>
+                  <span>Precio de cada uno</span>
+                </div>
+                <div className="-mt-1 grid grid-cols-2 gap-2">
                   <NumberInput value={line.quantity} onChange={(v) => setLines((ls) => ls.map((l, i) => (i === idx ? { ...l, quantity: v } : l)))} />
                   <MoneyInput value={line.unitPrice} onChange={(v) => setLines((ls) => ls.map((l, i) => (i === idx ? { ...l, unitPrice: v } : l)))} />
                 </div>
@@ -166,7 +182,7 @@ export function OrderForm({ open, onClose }: { open: boolean; onClose: () => voi
           </Field>
         </div>
 
-        <Field label="Notas">
+        <Field label="Notas (opcional)">
           <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Indicaciones especiales…" />
         </Field>
       </div>

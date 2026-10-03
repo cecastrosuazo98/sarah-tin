@@ -1,5 +1,15 @@
 /** Utilidades de fechas para filtros y agregaciones. */
 
+/**
+ * Convierte a Date. Una fecha sola "YYYY-MM-DD" se toma como día LOCAL
+ * (con `new Date("2026-10-01")` sería medianoche UTC, que en Chile es el día anterior).
+ */
+export function toDate(d: Date | string): Date {
+  if (typeof d !== "string") return d;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(d);
+}
+
 export function startOfDay(d = new Date()): Date {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
@@ -26,8 +36,8 @@ export function addDays(d: Date, n: number): Date {
 }
 
 export function isSameDay(a: Date | string, b: Date | string): boolean {
-  const da = new Date(a);
-  const db = new Date(b);
+  const da = toDate(a);
+  const db = toDate(b);
   return (
     da.getFullYear() === db.getFullYear() &&
     da.getMonth() === db.getMonth() &&
@@ -36,7 +46,7 @@ export function isSameDay(a: Date | string, b: Date | string): boolean {
 }
 
 export function inRange(date: string | Date, from: Date, to: Date): boolean {
-  const t = new Date(date).getTime();
+  const t = toDate(date).getTime();
   return t >= from.getTime() && t <= to.getTime();
 }
 

@@ -12,9 +12,9 @@ import { productEmoji } from "@/components/features/sales/sale-text";
 import { formatMoney, formatDateLong } from "@/lib/format";
 import { useTable } from "@/lib/data/hooks";
 import { TABLES } from "@/lib/data/types";
-import type { Sale, SaleItem, Customer, Payment, Product } from "@/lib/data/types";
+import type { Sale, SaleItem, Customer, Payment, Product, Order } from "@/lib/data/types";
 import { summarizeDay, totalReceivable } from "@/lib/domain/finance";
-import { startOfDay, addDays, isSameDay, dayName } from "@/lib/domain/dates";
+import { startOfDay, addDays, isSameDay, dayName, toYmd } from "@/lib/domain/dates";
 import { cn } from "@/lib/utils";
 
 /** Inicio = el día: cuánto vendiste, cuánto recibiste, quién quedó debiendo. */
@@ -24,6 +24,7 @@ export default function InicioPage() {
   const { data: payments } = useTable<Payment>(TABLES.payments);
   const { data: customers } = useTable<Customer>(TABLES.customers);
   const { data: products, loading: loadingProducts } = useTable<Product>(TABLES.products);
+  const { data: orders } = useTable<Order>(TABLES.orders);
   const { openSale, lastSaleDate } = useSaleFlow();
 
   // La fecha depende del reloj del navegador: se calcula solo en el cliente
@@ -109,6 +110,11 @@ export default function InicioPage() {
   const listTitle = isToday ? "Ventas de hoy" : name === "Ayer" ? "Ventas de ayer" : `Ventas del ${name}`;
   const selected = sales.find((s) => s.id === selectedId) ?? null;
   const firstTime = sales.length === 0 && products.length === 0;
+  const ordersToday = isToday
+    ? orders.filter(
+        (o) => o.order_date <= toYmd(now) && o.status !== "entregado" && o.status !== "cancelado"
+      ).length
+    : 0;
 
   return (
     <div className="space-y-5">
@@ -150,6 +156,18 @@ export default function InicioPage() {
         />
       ) : (
         <>
+          {ordersToday > 0 && (
+            <Link
+              href="/pedidos"
+              className="flex items-center justify-between gap-3 rounded-2xl border border-tin/40 bg-tin-50/80 px-4 py-3 text-cocoa transition hover:bg-tin-50"
+            >
+              <span className="font-semibold">
+                📋 {ordersToday === 1 ? "Tienes 1 pedido para entregar" : `Tienes ${ordersToday} pedidos para entregar`}
+              </span>
+              <ChevronRight className="h-5 w-5 shrink-0 text-tin-dark" />
+            </Link>
+          )}
+
           {/* Resumen del día */}
           <section className="rounded-3xl border border-peach/60 bg-white/85 p-5 shadow-card animate-fade-up">
             <p className="text-sm font-semibold text-cocoa-light">
@@ -161,7 +179,7 @@ export default function InicioPage() {
                 <SummaryLine label="Recibiste" value={summary.received} className="text-success" />
                 {summary.receivedFromOldDebts > 0 && (
                   <p className="text-right text-xs text-cocoa-light">
-                    Incluye {formatMoney(summary.receivedFromOldDebts)} que te pagaron de deudas de otros días
+                    Incluye {formatMoney(summary.receivedFromOldDebts)} de deudas anteriores o adelantos de pedidos
                   </p>
                 )}
               </div>

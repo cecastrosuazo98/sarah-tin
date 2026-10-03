@@ -60,7 +60,7 @@ export interface DaySummary {
   sold: number;
   /** Dinero que entró ese día (ventas del día + pagos de deudas). */
   received: number;
-  /** Parte de `received` que fue para pagar deudas de otros días. */
+  /** Parte de `received` que no es de las ventas del día (deudas anteriores o adelantos). */
   receivedFromOldDebts: number;
   /** Lo que todavía deben de las ventas de ese día. */
   owed: number;

@@ -66,7 +66,7 @@ export default function ReportesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Reportes" subtitle="Tu resultado, ventas y rentabilidad." />
+      <PageHeader title="Reportes" subtitle="Cuánto vendiste, gastaste y ganaste." />
 
       <div className="flex gap-2 overflow-x-auto pb-1 soft-scroll">
         {RANGES.map((r) => (
@@ -95,18 +95,18 @@ export default function ReportesPage() {
             <StatCard label="Ventas" value={formatMoney(data.revenue)} icon={ShoppingCart} tone="sarah" hint={`${data.count} ventas`} />
             <StatCard label="Gastos" value={formatMoney(data.expenseTotal)} icon={TrendingDown} tone="gold" />
             <StatCard
-              label="Resultado"
+              label="Ganancia estimada"
               value={formatMoney(data.result)}
               icon={data.result >= 0 ? TrendingUp : TrendingDown}
               tone={data.result >= 0 ? "success" : "danger"}
-              hint="Ventas − gastos"
+              hint="Lo que vendiste menos lo que gastaste"
             />
-            <StatCard label="Ticket promedio" value={formatMoney(data.count ? Math.round(data.revenue / data.count) : 0)} icon={Wallet} tone="tin" />
+            <StatCard label="Venta promedio" value={formatMoney(data.count ? Math.round(data.revenue / data.count) : 0)} icon={Wallet} tone="tin" />
           </section>
 
           <Card>
             <CardHeader className="flex-row items-center justify-between">
-              <CardTitle>Rentabilidad por producto</CardTitle>
+              <CardTitle>¿Qué te deja más ganancia?</CardTitle>
               <Trophy className="h-5 w-5 text-gold" />
             </CardHeader>
             <CardContent>
@@ -129,15 +129,15 @@ export default function ReportesPage() {
                       </div>
                       <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
                         <div>
-                          <p className="text-cocoa-light">Ventas</p>
+                          <p className="text-cocoa-light">Vendiste</p>
                           <p className="font-semibold text-cocoa">{formatMoney(p.revenue)}</p>
                         </div>
                         <div>
-                          <p className="text-cocoa-light">Costos</p>
+                          <p className="text-cocoa-light">Te costó</p>
                           <p className="font-semibold text-cocoa">{formatMoney(p.cost)}</p>
                         </div>
                         <div>
-                          <p className="text-cocoa-light">Ganancia</p>
+                          <p className="text-cocoa-light">Ganaste</p>
                           <p className="font-semibold text-success">{formatMoney(p.profit)}</p>
                         </div>
                       </div>

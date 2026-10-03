@@ -66,7 +66,7 @@ export function CustomerDetail({
   const itemsOf = (saleId: string) => saleItems.filter((it) => it.sale_id === saleId);
 
   const defaultMessage = customer
-    ? `Hola ${firstName}, te escribimos de ${BRAND.name} para recordarte que tienes un saldo pendiente de ${formatMoney(debt)}.\n\n¡Muchas gracias por preferirnos!`
+    ? `Hola ${firstName}, te escribimos de ${BRAND.name} para recordarte que nos quedaste debiendo ${formatMoney(debt)}.\n\n¡Muchas gracias por preferirnos!`
     : "";
   const [message, setMessage] = useState(defaultMessage);
 

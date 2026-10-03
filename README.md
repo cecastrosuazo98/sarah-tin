@@ -105,6 +105,9 @@ supabase/schema.sql   Esquema completo + RLS
 - ✅ **Fase 8** — Simplificación: Inicio = "¿qué pasó hoy?" (vendiste, recibiste,
   te deben y ventas del día), botón "Registrar venta" siempre visible con 4
   preguntas, "¿Quién me debe?" en Clientes y lo administrativo dentro de "Más".
+  Pedidos: "Lo entregué" lo anota como venta (y deuda si falta plata); el
+  adelanto cuenta como dinero recibido el día que se pagó. Productos: solo
+  nombre y precio a la vista; costos y receta en "Más detalles".
 
 Todo interconectado: cambiar el costo de un ingrediente recalcula recetas y
 productos; una venta que no se paga completa queda sola como deuda del cliente;

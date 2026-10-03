@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Sparkles, AlertTriangle } from "lucide-react";
+import { Sparkles, AlertTriangle, ChevronDown, Trash2 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
@@ -21,10 +21,12 @@ export function ProductForm({
   open,
   onClose,
   editing,
+  onDelete,
 }: {
   open: boolean;
   onClose: () => void;
   editing?: Product | null;
+  onDelete?: (p: Product) => void;
 }) {
   const toast = useToast();
   const { settings } = useSettings();
@@ -40,9 +42,11 @@ export function ProductForm({
   const [salePrice, setSalePrice] = useState(0);
   const [stock, setStock] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+    setShowDetails(false);
     setName(editing?.name ?? "");
     setDescription(editing?.description ?? "");
     setCategory(editing?.category ?? settings.product_categories[0] ?? "Otros");
@@ -77,6 +81,10 @@ export function ProductForm({
       toast("Escribe el nombre del producto.", "error");
       return;
     }
+    if (salePrice <= 0) {
+      toast("¿A qué precio lo vendes?", "error");
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -107,7 +115,6 @@ export function ProductForm({
     <Modal
       open={open}
       onClose={onClose}
-      size="lg"
       title={editing ? "Editar producto" : "Nuevo producto"}
       footer={
         <>
@@ -117,89 +124,118 @@ export function ProductForm({
       }
     >
       <div className="space-y-4">
-        <Field label="Nombre" required>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Queque tradicional" />
+        <Field label="¿Cómo se llama?" required>
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Brownie" className="h-12 text-base" />
+        </Field>
+        <Field label="¿A qué precio lo vendes?" required hint="El precio de una unidad. Se usa solo al registrar ventas.">
+          <MoneyInput value={salePrice} onChange={setSalePrice} className="h-12 text-lg" />
         </Field>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Categoría">
-            <Select value={category} onChange={(e) => setCategory(e.target.value)}>
-              {settings.product_categories.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Stock">
-            <NumberInput value={stock} onChange={setStock} />
-          </Field>
-        </div>
+        {econ.cost > 0 && salePrice > 0 && (
+          <p className="rounded-xl bg-[#EAF4EB] px-3 py-2 text-sm text-cocoa">
+            Te cuesta hacerlo {formatMoney(econ.cost)}: ganas <b className="text-success">{formatMoney(econ.profit)}</b> por cada uno.
+          </p>
+        )}
 
-        <Field label="Receta asociada" hint="Opcional: usa el costo de una receta.">
-          <SearchSelect
-            value={recipeId}
-            onChange={setRecipeId}
-            placeholder="Sin receta"
-            searchPlaceholder="Buscar receta…"
-            options={[
-              { value: "", label: "Sin receta" },
-              ...recipes.map((r) => ({ value: r.id, label: r.name })),
-            ]}
-          />
-        </Field>
+        <button
+          type="button"
+          onClick={() => setShowDetails((v) => !v)}
+          className="flex w-full items-center justify-between rounded-xl bg-peach-light/50 px-3 py-2.5 text-sm font-semibold text-cocoa-light"
+        >
+          Más detalles (opcional): costos, receta, categoría
+          <ChevronDown className={`h-4 w-4 transition ${showDetails ? "rotate-180" : ""}`} />
+        </button>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Costos adicionales" hint="Envase, decoración, etc.">
-            <MoneyInput value={additionalCost} onChange={setAdditionalCost} />
-          </Field>
-          <Field label="Precio de venta" required>
-            <MoneyInput value={salePrice} onChange={setSalePrice} />
-          </Field>
-        </div>
-
-        <Field label="Descripción">
-          <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Breve descripción…" />
-        </Field>
-
-        {/* Panel de economía */}
-        <div className="rounded-2xl border border-peach/60 bg-peach-light/30 p-4">
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div>
-              <p className="text-[0.7rem] text-cocoa-light">Costo</p>
-              <p className="font-bold text-cocoa">{formatMoney(econ.cost)}</p>
+        {showDetails && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Categoría">
+                <Select value={category} onChange={(e) => setCategory(e.target.value)}>
+                  {settings.product_categories.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="¿Cuántos tienes hechos?">
+                <NumberInput value={stock} onChange={setStock} />
+              </Field>
             </div>
-            <div>
-              <p className="text-[0.7rem] text-cocoa-light">Ganancia</p>
-              <p className="font-bold text-success">{formatMoney(econ.profit)}</p>
-            </div>
-            <div>
-              <p className="text-[0.7rem] text-cocoa-light">Margen</p>
-              <p className={`font-bold ${econ.belowTarget ? "text-danger" : "text-cocoa"}`}>
-                {formatPercent(econ.margin, 1)}
-              </p>
+
+            <Field label="Receta" hint="Si eliges una, el costo se calcula solo.">
+              <SearchSelect
+                value={recipeId}
+                onChange={setRecipeId}
+                placeholder="Sin receta"
+                searchPlaceholder="Buscar receta…"
+                options={[
+                  { value: "", label: "Sin receta" },
+                  ...recipes.map((r) => ({ value: r.id, label: r.name })),
+                ]}
+              />
+            </Field>
+
+            <Field label="Otros costos por unidad" hint="Envase, caja, decoración…">
+              <MoneyInput value={additionalCost} onChange={setAdditionalCost} />
+            </Field>
+
+            <Field label="Descripción">
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Breve descripción…" />
+            </Field>
+
+            {/* Panel de economía */}
+            <div className="rounded-2xl border border-peach/60 bg-peach-light/30 p-4">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-[0.7rem] text-cocoa-light">Te cuesta</p>
+                  <p className="font-bold text-cocoa">{formatMoney(econ.cost)}</p>
+                </div>
+                <div>
+                  <p className="text-[0.7rem] text-cocoa-light">Ganas</p>
+                  <p className="font-bold text-success">{formatMoney(econ.profit)}</p>
+                </div>
+                <div>
+                  <p className="text-[0.7rem] text-cocoa-light">Margen</p>
+                  <p className={`font-bold ${econ.belowTarget ? "text-danger" : "text-cocoa"}`}>
+                    {formatPercent(econ.margin, 1)}
+                  </p>
+                </div>
+              </div>
+
+              {econ.belowTarget && econ.cost > 0 && (
+                <p className="mt-3 flex items-center gap-1.5 rounded-xl bg-[#FBEDED] px-3 py-2 text-xs font-medium text-danger">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  Ganas menos de lo que te propusiste ({formatPercent(settings.target_margin, 0)}).
+                </p>
+              )}
+
+              {econ.cost > 0 && (
+                <div className="mt-3 flex items-center justify-between rounded-xl bg-white/70 px-3 py-2">
+                  <div className="flex items-center gap-1.5 text-sm text-cocoa">
+                    <Sparkles className="h-4 w-4 text-gold" />
+                    Precio sugerido: <span className="font-bold">{formatMoney(econ.suggestedPrice)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSalePrice(econ.suggestedPrice)}
+                    className="text-xs font-semibold text-sarah-dark hover:underline"
+                  >
+                    Usar
+                  </button>
+                </div>
+              )}
             </div>
           </div>
+        )}
 
-          {econ.belowTarget && (
-            <p className="mt-3 flex items-center gap-1.5 rounded-xl bg-[#FBEDED] px-3 py-2 text-xs font-medium text-danger">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              Bajo tu margen objetivo ({formatPercent(settings.target_margin, 0)}).
-            </p>
-          )}
-
-          <div className="mt-3 flex items-center justify-between rounded-xl bg-white/70 px-3 py-2">
-            <div className="flex items-center gap-1.5 text-sm text-cocoa">
-              <Sparkles className="h-4 w-4 text-gold" />
-              Precio sugerido: <span className="font-bold">{formatMoney(econ.suggestedPrice)}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSalePrice(econ.suggestedPrice)}
-              className="text-xs font-semibold text-sarah-dark hover:underline"
-            >
-              Usar
-            </button>
-          </div>
-        </div>
+        {editing && onDelete && (
+          <button
+            type="button"
+            onClick={() => onDelete(editing)}
+            className="flex w-full items-center justify-center gap-2 rounded-xl py-2 text-sm font-semibold text-danger transition hover:bg-[#FBEDED]"
+          >
+            <Trash2 className="h-4 w-4" /> Eliminar producto
+          </button>
+        )}
       </div>
     </Modal>
   );

@@ -30,12 +30,14 @@ export function MoneyInput({
   placeholder,
   className,
   id,
+  autoFocus,
 }: {
   value: number;
   onChange: (n: number) => void;
   placeholder?: string;
   className?: string;
   id?: string;
+  autoFocus?: boolean;
 }) {
   return (
     <div className="relative">
@@ -44,6 +46,7 @@ export function MoneyInput({
       </span>
       <input
         id={id}
+        autoFocus={autoFocus}
         inputMode="numeric"
         value={formatInt(value)}
         placeholder={placeholder ?? "0"}

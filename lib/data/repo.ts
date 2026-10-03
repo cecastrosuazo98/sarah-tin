@@ -31,6 +31,8 @@ import type {
   OrderStatus,
 } from "./types";
 import { toBase } from "@/lib/domain/units";
+import { toYmd } from "@/lib/domain/dates";
+import { normalize } from "@/lib/search";
 
 // ---------------- Inventario (descuento/reposición por venta) ----------------
 
@@ -99,6 +101,11 @@ export interface NewSaleInput {
   paidAmount: number;
   notes?: string;
   date?: string;
+  /**
+   * Parte de `paidAmount` que ya se pagó antes y tiene su propio registro en
+   * `payments` (ej: el adelanto de un pedido). No se vuelve a registrar.
+   */
+  alreadyPaid?: number;
 }
 
 export async function createSale(input: NewSaleInput): Promise<Sale> {
@@ -133,11 +140,12 @@ export async function createSale(input: NewSaleInput): Promise<Sale> {
 
   // Lo que pagó al momento de comprar queda como un pago ligado a la venta,
   // así "Recibiste" del día se calcula solo, sumando los pagos.
-  if (paid > 0) {
+  const paidNow = paid - Math.min(input.alreadyPaid ?? 0, paid);
+  if (paidNow > 0) {
     await createSilent<Payment>(TABLES.payments, {
       customer_id: input.customerId,
       sale_id: sale.id,
-      amount: paid,
+      amount: paidNow,
       method: input.method === "fiado" ? "efectivo" : input.method,
       note: "Pagó al comprar",
       paid_at: sale.sale_date,
@@ -277,7 +285,7 @@ export async function registerPurchase(input: {
       category: "Ingredientes",
       description: `Compra: ${ing.name}`,
       amount: input.totalCost,
-      expense_date: new Date().toISOString().slice(0, 10),
+      expense_date: toYmd(new Date()),
     });
   }
 
@@ -296,7 +304,7 @@ export async function addExpense(input: {
     category: input.category,
     description: input.description,
     amount: input.amount,
-    expense_date: input.date ?? new Date().toISOString().slice(0, 10),
+    expense_date: input.date ?? toYmd(new Date()),
   });
   emitChange();
 }
@@ -313,7 +321,17 @@ export interface NewOrderInput {
   notes?: string;
 }
 
+/** Nota con la que se guarda el adelanto de un pedido (para ligarlo al entregarlo). */
+const advanceNote = (code: string) => `Adelanto pedido ${code}`;
+
+/** Producto con ese nombre (sin importar mayúsculas ni tildes), si existe. */
+function productByName(products: Product[], name: string): Product | undefined {
+  const n = normalize(name).trim();
+  return products.find((p) => normalize(p.name).trim() === n);
+}
+
 export async function createOrder(input: NewOrderInput): Promise<Order> {
+  const products = await list<Product>(TABLES.products);
   const total = input.items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
   const paymentStatus: PaymentStatus =
     input.deposit <= 0 ? "pendiente" : input.deposit >= total ? "pagado" : "abono";
@@ -331,10 +349,11 @@ export async function createOrder(input: NewOrderInput): Promise<Order> {
   });
 
   for (const it of input.items) {
+    const product = productByName(products, it.name);
     await createSilent<OrderItem>(TABLES.order_items, {
       order_id: order.id,
-      product_id: null,
-      name_snapshot: it.name,
+      product_id: product?.id ?? null,
+      name_snapshot: product?.name ?? it.name,
       quantity: it.quantity,
       unit_price: it.unitPrice,
       line_total: it.quantity * it.unitPrice,
@@ -342,8 +361,110 @@ export async function createOrder(input: NewOrderInput): Promise<Order> {
     });
   }
 
+  // El adelanto es dinero que entra hoy: queda como pago (aún sin venta).
+  const deposit = Math.min(input.deposit, total);
+  if (deposit > 0) {
+    await createSilent<Payment>(TABLES.payments, {
+      customer_id: input.customerId,
+      sale_id: null,
+      amount: deposit,
+      method: "efectivo",
+      note: advanceNote(input.code),
+      paid_at: new Date().toISOString(),
+    });
+  }
+
   emitChange();
   return order;
+}
+
+/**
+ * Entregar un pedido: queda anotado como venta de hoy (con su deuda, si no
+ * pagó todo) y el adelanto se liga a esa venta.
+ */
+export async function deliverOrder(input: { orderId: string; paidNow: number }): Promise<Sale> {
+  const [orders, orderItems, products, payments] = await Promise.all([
+    list<Order>(TABLES.orders),
+    list<OrderItem>(TABLES.order_items),
+    list<Product>(TABLES.products),
+    list<Payment>(TABLES.payments),
+  ]);
+  const order = orders.find((o) => o.id === input.orderId);
+  if (!order) throw new Error("No encontramos ese pedido.");
+
+  const items = orderItems
+    .filter((it) => it.order_id === order.id)
+    .map((it) => ({
+      productId: it.product_id ?? productByName(products, it.name_snapshot)?.id ?? null,
+      name: it.name_snapshot,
+      quantity: it.quantity,
+      unitPrice: it.unit_price,
+    }));
+  const total = items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+  const deposit = Math.min(order.deposit, total);
+  const paid = Math.min(deposit + Math.max(input.paidNow, 0), total);
+  const status: PaymentStatus = paid >= total ? "pagado" : paid > 0 ? "abono" : "pendiente";
+  if (status !== "pagado" && !order.customer_id) {
+    throw new Error("Para anotar una deuda, el pedido necesita el nombre del cliente.");
+  }
+
+  const sale = await createSale({
+    customerId: order.customer_id,
+    items,
+    method: status === "pagado" ? "efectivo" : "fiado",
+    status,
+    paidAmount: paid,
+    notes: `Pedido ${order.code}`,
+    alreadyPaid: deposit,
+  });
+
+  if (deposit > 0) {
+    const advance = payments.find(
+      (p) => !p.sale_id && p.note === advanceNote(order.code) && p.customer_id === order.customer_id
+    );
+    if (advance) {
+      await updateSilent<Payment>(TABLES.payments, advance.id, { sale_id: sale.id });
+    } else {
+      // Pedidos antiguos: el adelanto no estaba registrado como pago.
+      await createSilent<Payment>(TABLES.payments, {
+        customer_id: order.customer_id,
+        sale_id: sale.id,
+        amount: deposit,
+        method: "efectivo",
+        note: advanceNote(order.code),
+        paid_at: order.created_at,
+      });
+    }
+  }
+
+  await updateSilent<Order>(TABLES.orders, order.id, {
+    status: "entregado",
+    payment_status: status,
+  });
+  emitChange();
+  return sale;
+}
+
+/** Elimina un pedido, sus productos y su adelanto si aún no se entregó. */
+export async function deleteOrder(orderId: string): Promise<void> {
+  const [orders, orderItems, payments] = await Promise.all([
+    list<Order>(TABLES.orders),
+    list<OrderItem>(TABLES.order_items),
+    list<Payment>(TABLES.payments),
+  ]);
+  const order = orders.find((o) => o.id === orderId);
+  for (const it of orderItems.filter((x) => x.order_id === orderId)) {
+    await remove(TABLES.order_items, it.id);
+  }
+  if (order) {
+    for (const p of payments.filter(
+      (p) => !p.sale_id && p.note === advanceNote(order.code) && p.customer_id === order.customer_id
+    )) {
+      await remove(TABLES.payments, p.id);
+    }
+  }
+  await remove(TABLES.orders, orderId);
+  emitChange();
 }
 
 export async function updateOrderStatus(

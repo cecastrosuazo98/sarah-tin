@@ -22,7 +22,7 @@ import { remove } from "@/lib/data/client";
 import { TABLES } from "@/lib/data/types";
 import type { Expense } from "@/lib/data/types";
 import { formatMoney } from "@/lib/format";
-import { startOfMonth, inRange } from "@/lib/domain/dates";
+import { startOfMonth, inRange, toYmd } from "@/lib/domain/dates";
 
 export default function GastosPage() {
   const toast = useToast();
@@ -30,12 +30,18 @@ export default function GastosPage() {
   const { data: expenses, loading } = useTable<Expense>(TABLES.expenses);
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState<Expense | null>(null);
-  useAutoOpen(() => setOpen(true));
+  useAutoOpen(() => openNew());
 
   const [category, setCategory] = useState(settings.expense_categories[0] ?? "Otros");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState(0);
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => toYmd(new Date()));
+
+  // Cada gasto nuevo parte con la fecha de hoy.
+  function openNew() {
+    setDate(toYmd(new Date()));
+    setOpen(true);
+  }
 
   const [query, setQuery] = useState("");
   const sorted = useMemo(
@@ -68,8 +74,8 @@ export default function GastosPage() {
     <div className="space-y-6">
       <PageHeader
         title="Gastos"
-        subtitle="Registra tus gastos por categoría."
-        action={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Nuevo</Button>}
+        subtitle="Lo que gastas en el negocio."
+        action={<Button variant="outline" onClick={openNew}><Plus className="h-4 w-4" /> Nuevo</Button>}
       />
 
       <div className="rounded-2xl border border-peach/60 bg-white/80 p-4 shadow-card">
@@ -86,8 +92,8 @@ export default function GastosPage() {
           icon={Receipt}
           emoji="💸"
           title="Todavía no hay gastos"
-          description="Registra tus gastos para ver tu resultado real del mes."
-          action={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Registrar gasto</Button>}
+          description="Anota lo que gastas para saber tu ganancia estimada del mes."
+          action={<Button onClick={openNew}><Plus className="h-4 w-4" /> Registrar gasto</Button>}
         />
       ) : filtered.length === 0 ? (
         <EmptyState emoji="🔍" title="Sin resultados" description="No hay gastos que coincidan con tu búsqueda." />
@@ -128,7 +134,7 @@ export default function GastosPage() {
         }
       >
         <div className="space-y-4">
-          <Field label="Descripción" required>
+          <Field label="¿En qué gastaste?" required>
             <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ej: Compra de harina" />
           </Field>
           <div className="grid grid-cols-2 gap-3">
@@ -139,11 +145,11 @@ export default function GastosPage() {
                 ))}
               </Select>
             </Field>
-            <Field label="Monto" required>
+            <Field label="¿Cuánto?" required>
               <MoneyInput value={amount} onChange={setAmount} />
             </Field>
           </div>
-          <Field label="Fecha">
+          <Field label="¿Cuándo?">
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </Field>
         </div>

@@ -14,15 +14,15 @@ import { create } from "@/lib/data/client";
 import { getErrorMessage } from "@/lib/data/error";
 import { TABLES } from "@/lib/data/types";
 import type { Product, Customer, Sale, SaleItem, PaymentStatus } from "@/lib/data/types";
-import { matchesSearch } from "@/lib/search";
+import { matchesSearch, normalize } from "@/lib/search";
 import { formatMoney, formatDateLong } from "@/lib/format";
 import { toYmd } from "@/lib/domain/dates";
 import { cn } from "@/lib/utils";
 import { productEmoji, itemsText } from "./sale-text";
+import { PayOption, ResultBox, type PayMode } from "./pay-ui";
 
 type CartLine = { productId: string | null; name: string; quantity: number; unitPrice: number };
 type Step = 1 | 2 | 3 | 4 | 5;
-type PayMode = "todo" | "parte" | "nada";
 
 /**
  * Registrar una venta en 4 preguntas simples:
@@ -273,7 +273,7 @@ export function SaleForm({
           <SearchInput value={query} onChange={setQuery} placeholder="Escribe el nombre…" />
           <div className="space-y-2">
             {query.trim() &&
-              !customers.some((c) => c.name.trim().toLowerCase() === query.trim().toLowerCase()) && (
+              !customers.some((c) => normalize(c.name).trim() === normalize(query).trim()) && (
                 <BigOption onClick={createCustomer} className="border-dashed">
                   <UserPlus className="h-5 w-5 text-sarah-dark" />
                   <span>
@@ -440,7 +440,7 @@ export function SaleForm({
           {payMode === "parte" && (
             <div>
               <p className="mb-1 text-sm font-semibold text-cocoa">¿Cuánto pagó?</p>
-              <MoneyInput value={partial} onChange={setPartial} className="h-14 text-2xl" />
+              <MoneyInput value={partial} onChange={setPartial} className="h-14 text-2xl" autoFocus />
             </div>
           )}
 
@@ -552,58 +552,6 @@ function BigOption({
     >
       {children}
     </button>
-  );
-}
-
-function PayOption({
-  active,
-  onClick,
-  dot,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  dot: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "flex h-14 w-full items-center gap-3 rounded-2xl border-2 px-4 text-left text-base font-bold transition active:scale-[0.99]",
-        active ? "border-sarah bg-sarah-50 text-cocoa" : "border-peach/60 bg-white/80 text-cocoa"
-      )}
-    >
-      <span aria-hidden>{dot}</span>
-      {children}
-    </button>
-  );
-}
-
-/** El resultado del pago, grande y claro. */
-function ResultBox({ total, paid }: { total: number; paid: number }) {
-  const debt = Math.max(total - paid, 0);
-  if (debt <= 0) {
-    return (
-      <div className="rounded-2xl bg-[#EAF4EB] px-4 py-4 text-center font-display text-2xl font-extrabold text-success">
-        🟢 PAGADO
-      </div>
-    );
-  }
-  return (
-    <div
-      className={cn(
-        "rounded-2xl px-4 py-4 text-center",
-        paid > 0 ? "bg-[#FBF1DA] text-warning" : "bg-[#FBEDED] text-danger"
-      )}
-    >
-      {paid > 0 && <p className="text-sm font-semibold text-cocoa">Pagó {formatMoney(paid)}. Le quedan debiendo:</p>}
-      <p className="font-display text-2xl font-extrabold">
-        {paid > 0 ? "🟡" : "🔴"} DEBE {formatMoney(debt)}
-      </p>
-    </div>
   );
 }
 
