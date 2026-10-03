@@ -139,7 +139,7 @@ export default function PedidosPage() {
                           {o.payment_status === "pagado" ? (
                             <Badge tone="success">Pagado</Badge>
                           ) : o.payment_status === "abono" ? (
-                            <Badge tone="warning">Abono {formatMoney(o.deposit)}</Badge>
+                            <Badge tone="warning">Pagó {formatMoney(o.deposit)}</Badge>
                           ) : (
                             <Badge tone="danger">Sin pago</Badge>
                           )}

@@ -14,6 +14,7 @@ import { ProductForm } from "@/components/features/products/ProductForm";
 import { useProductsEconomics, type ProductWithEconomics } from "@/lib/data/derived";
 import { useSettings } from "@/lib/data/settings";
 import { remove } from "@/lib/data/client";
+import { useAutoOpen } from "@/lib/hooks/useAutoOpen";
 import { TABLES } from "@/lib/data/types";
 import type { Product } from "@/lib/data/types";
 import { formatMoney, formatPercent } from "@/lib/format";
@@ -27,6 +28,7 @@ export default function ProductosPage() {
   const [deleting, setDeleting] = useState<Product | null>(null);
   const [filter, setFilter] = useState("Todas");
   const [query, setQuery] = useState("");
+  useAutoOpen(() => setFormOpen(true));
 
   const categories = useMemo(
     () => ["Todas", ...settings.product_categories],

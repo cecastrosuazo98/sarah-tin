@@ -1,86 +1,64 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, ShoppingCart, Trash2 } from "lucide-react";
+import { Plus, ShoppingCart } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { SearchBar } from "@/components/shared/SearchBar";
 import { matchesSearch } from "@/lib/search";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useToast } from "@/components/ui/toast";
-import { SaleForm } from "@/components/features/sales/SaleForm";
+import { SaleRow } from "@/components/features/sales/SaleRow";
+import { SaleDetail } from "@/components/features/sales/SaleDetail";
+import { useSaleFlow } from "@/components/features/sales/SaleFlow";
+import { productEmoji } from "@/components/features/sales/sale-text";
 import { useTable } from "@/lib/data/hooks";
 import { useAutoOpen } from "@/lib/hooks/useAutoOpen";
-import { deleteSale } from "@/lib/data/repo";
-import { getErrorMessage } from "@/lib/data/error";
 import { TABLES } from "@/lib/data/types";
-import type { Sale, SaleItem, Customer } from "@/lib/data/types";
+import type { Sale, SaleItem, Customer, Product } from "@/lib/data/types";
 import { formatMoney } from "@/lib/format";
-import { PAYMENT_METHODS } from "@/lib/constants";
-import { startOfDay, startOfMonth, inRange } from "@/lib/domain/dates";
+import { startOfMonth, inRange } from "@/lib/domain/dates";
 
-const methodLabel = (v: string) =>
-  PAYMENT_METHODS.find((m) => m.value === v)?.label ?? v;
-
+/** Todas las ventas, para buscar alguna de otro día. */
 export default function VentasPage() {
-  const toast = useToast();
   const { data: sales, loading } = useTable<Sale>(TABLES.sales);
   const { data: saleItems } = useTable<SaleItem>(TABLES.sale_items);
   const { data: customers } = useTable<Customer>(TABLES.customers);
-  const [open, setOpen] = useState(false);
-  const [deleting, setDeleting] = useState<Sale | null>(null);
+  const { data: products } = useTable<Product>(TABLES.products);
+  const { openSale } = useSaleFlow();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  useAutoOpen(() => setOpen(true));
+  useAutoOpen(openSale);
 
   const sorted = useMemo(
     () => [...sales].sort((a, b) => +new Date(b.sale_date) - +new Date(a.sale_date)),
     [sales]
   );
 
-  const filtered = sorted.filter((s) => {
-    const customer = customers.find((c) => c.id === s.customer_id)?.name ?? "";
-    const items = saleItems
-      .filter((it) => it.sale_id === s.id)
-      .map((it) => it.name_snapshot)
-      .join(" ");
-    return matchesSearch(query, customer, items, methodLabel(s.method), s.notes);
-  });
+  const itemsOf = (saleId: string) => saleItems.filter((it) => it.sale_id === saleId);
+  const customerName = (id: string | null) =>
+    customers.find((c) => c.id === id)?.name ?? "Alguien de paso";
+
+  const filtered = sorted.filter((s) =>
+    matchesSearch(
+      query,
+      customerName(s.customer_id),
+      itemsOf(s.id).map((it) => it.name_snapshot).join(" ")
+    )
+  );
 
   const now = new Date();
-  const todayTotal = sales
-    .filter((s) => inRange(s.sale_date, startOfDay(now), now))
-    .reduce((s, x) => s + x.total, 0);
   const monthTotal = sales
     .filter((s) => inRange(s.sale_date, startOfMonth(now), now))
     .reduce((s, x) => s + x.total, 0);
 
+  const selected = sales.find((s) => s.id === selectedId) ?? null;
+
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Ventas"
-        subtitle="Registra tus ventas del día en segundos."
-        action={
-          <Button onClick={() => setOpen(true)}>
-            <Plus className="h-4 w-4" /> Nueva venta
-          </Button>
-        }
-      />
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-peach/60 bg-white/80 p-4 shadow-card">
-          <p className="text-xs text-cocoa-light">Hoy</p>
-          <p className="font-display text-2xl font-extrabold text-cocoa">{formatMoney(todayTotal)}</p>
-        </div>
-        <div className="rounded-2xl border border-peach/60 bg-white/80 p-4 shadow-card">
-          <p className="text-xs text-cocoa-light">Este mes</p>
-          <p className="font-display text-2xl font-extrabold text-cocoa">{formatMoney(monthTotal)}</p>
-        </div>
-      </div>
+      <PageHeader title="Todas las ventas" subtitle={`Este mes vendiste ${formatMoney(monthTotal)}.`} />
 
       {sorted.length > 0 && (
-        <SearchBar value={query} onChange={setQuery} placeholder="Buscar por cliente o producto…" />
+        <SearchBar value={query} onChange={setQuery} placeholder="Buscar por nombre o producto…" />
       )}
 
       {!loading && sorted.length === 0 ? (
@@ -88,66 +66,36 @@ export default function VentasPage() {
           icon={ShoppingCart}
           emoji="🛒"
           title="Todavía no hay ventas"
-          description="Registra tu primera venta y empieza a llevar el control del día."
-          action={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Nueva venta</Button>}
+          description="Cuando registres una venta aparecerá aquí."
+          action={<Button onClick={openSale}><Plus className="h-4 w-4" /> Registrar venta</Button>}
         />
       ) : filtered.length === 0 ? (
-        <EmptyState emoji="🔍" title="Sin resultados" description="No hay ventas que coincidan con tu búsqueda." />
+        <EmptyState emoji="🔍" title="Sin resultados" description="No hay ventas con ese nombre o producto." />
       ) : (
         <div className="space-y-2">
           {filtered.map((s) => {
-            const items = saleItems.filter((it) => it.sale_id === s.id);
-            const customer = customers.find((c) => c.id === s.customer_id);
-            const summary = items.map((it) => `${it.quantity}× ${it.name_snapshot}`).join(", ");
+            const items = itemsOf(s.id);
+            const product = products.find((p) => p.id === items[0]?.product_id);
             return (
-              <div key={s.id} className="flex items-center gap-3 rounded-2xl border border-peach/60 bg-white/80 p-4 shadow-card">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate font-semibold text-cocoa">{customer?.name ?? "Venta sin cliente"}</p>
-                    {s.status === "pagado" ? (
-                      <Badge tone="success">{s.method === "fiado" ? "Pagado" : methodLabel(s.method)}</Badge>
-                    ) : s.status === "abono" ? (
-                      <Badge tone="warning">Abono</Badge>
-                    ) : (
-                      <Badge tone="danger">Pendiente</Badge>
-                    )}
-                  </div>
-                  <p className="truncate text-xs text-cocoa-light">{summary || "—"}</p>
-                  <p className="text-xs text-cocoa-soft">
-                    {new Date(s.sale_date).toLocaleDateString("es-CL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-display text-lg font-extrabold text-cocoa">{formatMoney(s.total)}</p>
-                  {s.status !== "pagado" && (
-                    <p className="text-xs font-medium text-danger">Debe {formatMoney(s.total - s.paid_amount)}</p>
-                  )}
-                </div>
-                <button onClick={() => setDeleting(s)} className="text-cocoa-soft hover:text-danger" aria-label="Eliminar">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
+              <SaleRow
+                key={s.id}
+                sale={s}
+                items={items}
+                customerName={customerName(s.customer_id)}
+                emoji={productEmoji(product?.name ?? items[0]?.name_snapshot, product?.category)}
+                subtitle={new Date(s.sale_date).toLocaleDateString("es-CL", { weekday: "short", day: "numeric", month: "short" })}
+                onClick={() => setSelectedId(s.id)}
+              />
             );
           })}
         </div>
       )}
 
-      <SaleForm open={open} onClose={() => setOpen(false)} />
-      <ConfirmDialog
-        open={!!deleting}
-        onClose={() => setDeleting(null)}
-        onConfirm={async () => {
-          if (!deleting) return;
-          try {
-            await deleteSale(deleting.id);
-            toast("Venta eliminada y stock repuesto");
-          } catch (e) {
-            toast(getErrorMessage(e, "No se pudo eliminar."), "error");
-            throw e;
-          }
-        }}
-        title="Eliminar venta"
-        message="¿Eliminar esta venta? Esta acción no se puede deshacer."
+      <SaleDetail
+        sale={selected}
+        items={selected ? itemsOf(selected.id) : []}
+        customer={customers.find((c) => c.id === selected?.customer_id) ?? null}
+        onClose={() => setSelectedId(null)}
       />
     </div>
   );

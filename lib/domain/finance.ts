@@ -1,22 +1,9 @@
 /**
- * Agregaciones financieras: dashboard, deudas, rentabilidad.
+ * Agregaciones: deudas y resumen del día.
  * Funciones puras sobre las filas del store.
  */
-import type {
-  Sale,
-  SaleItem,
-  Expense,
-  Customer,
-  Payment,
-} from "@/lib/data/types";
-import {
-  startOfDay,
-  startOfWeek,
-  startOfMonth,
-  addDays,
-  inRange,
-  isSameDay,
-} from "./dates";
+import type { Sale, Payment } from "@/lib/data/types";
+import { inRange, isSameDay } from "./dates";
 
 export function sumInRange(
   sales: Sale[],
@@ -42,134 +29,64 @@ export function totalReceivable(sales: Sale[]): number {
     .reduce((sum, s) => sum + Math.max(s.total - s.paid_amount, 0), 0);
 }
 
-export interface DashboardData {
-  salesToday: number;
-  salesWeek: number;
-  salesMonth: number;
-  expensesMonth: number;
-  estimatedProfit: number;
-  receivable: number;
-  productsSoldToday: number;
-  monthGrowth: number | null;
-}
-
-export function computeDashboard(params: {
-  sales: Sale[];
-  saleItems: SaleItem[];
-  expenses: Expense[];
-}): DashboardData {
-  const { sales, saleItems, expenses } = params;
-  const now = new Date();
-  const endToday = new Date(now);
-  endToday.setHours(23, 59, 59, 999);
-  const today = { from: startOfDay(now), to: endToday };
-  const week = { from: startOfWeek(now), to: endToday };
-  const month = { from: startOfMonth(now), to: endToday };
-
-  const salesToday = sumInRange(sales, today.from, today.to);
-  const salesWeek = sumInRange(sales, week.from, week.to);
-  const salesMonth = sumInRange(sales, month.from, month.to);
-
-  const expensesMonth = expenses
-    .filter((e) => inRange(e.expense_date, month.from, month.to))
-    .reduce((s, e) => s + e.amount, 0);
-
-  const prevFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const prevTo = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-  const salesPrevMonth = sumInRange(sales, prevFrom, prevTo);
-  const monthGrowth =
-    salesPrevMonth > 0 ? (salesMonth - salesPrevMonth) / salesPrevMonth : null;
-
-  const todaySaleIds = new Set(
-    sales.filter((s) => isSameDay(s.sale_date, now)).map((s) => s.id)
-  );
-  const productsSoldToday = saleItems
-    .filter((it) => todaySaleIds.has(it.sale_id))
-    .reduce((s, it) => s + it.quantity, 0);
-
-  return {
-    salesToday,
-    salesWeek,
-    salesMonth,
-    expensesMonth,
-    estimatedProfit: salesMonth - expensesMonth,
-    receivable: totalReceivable(sales),
-    productsSoldToday,
-    monthGrowth,
-  };
-}
-
-export interface SalesPoint {
-  date: string;
-  label: string;
-  amount: number;
-}
-
-/** Ventas por día de los últimos N días. */
-export function salesByDay(sales: Sale[], days = 7): SalesPoint[] {
-  const dayLabels = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-  const now = new Date();
-  const points: SalesPoint[] = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const d = addDays(startOfDay(now), -i);
-    const amount = sales
-      .filter((s) => isSameDay(s.sale_date, d))
-      .reduce((sum, s) => sum + s.total, 0);
-    points.push({ date: d.toISOString(), label: dayLabels[d.getDay()], amount });
-  }
-  return points;
-}
-
-export interface TopProduct {
-  id: string;
-  name: string;
-  units: number;
-  revenue: number;
-}
-
-export function topProducts(
-  saleItems: SaleItem[],
-  limit = 5,
-  saleIds?: Set<string>
-): TopProduct[] {
-  const map = new Map<string, TopProduct>();
-  for (const it of saleItems) {
-    if (saleIds && !saleIds.has(it.sale_id)) continue;
-    const key = it.product_id ?? it.name_snapshot;
-    const cur = map.get(key) ?? {
-      id: key,
-      name: it.name_snapshot,
-      units: 0,
-      revenue: 0,
-    };
-    cur.units += it.quantity;
-    cur.revenue += it.line_total;
-    map.set(key, cur);
-  }
-  return Array.from(map.values())
-    .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, limit);
-}
-
-export interface PendingCustomer {
-  id: string;
-  name: string;
-  amount: number;
-}
-
-export function pendingCustomers(
-  customers: Customer[],
-  sales: Sale[]
-): PendingCustomer[] {
-  return customers
-    .map((c) => ({ id: c.id, name: c.name, amount: customerDebt(c.id, sales) }))
-    .filter((c) => c.amount > 0)
-    .sort((a, b) => b.amount - a.amount);
-}
-
 /** Total pagado por un cliente (historial). */
 export function customerPaid(customerId: string, payments: Payment[]): number {
   return payments
     .filter((p) => p.customer_id === customerId)
     .reduce((s, p) => s + p.amount, 0);
+}
+
+// ---------------- Vista "¿Qué pasó hoy?" ----------------
+
+/** Lo que todavía debe una venta. */
+export function saleDebt(sale: Sale): number {
+  return Math.max(sale.total - sale.paid_amount, 0);
+}
+
+/**
+ * Lo que se cobró al momento de vender en ventas antiguas, de antes de que
+ * cada pago quedara registrado en `payments`. Esas ventas no tienen pagos
+ * ligados; si no fueron fiadas, se pagaron completas ese día.
+ */
+function legacyPaidAtSale(sale: Sale, linkedSaleIds: Set<string>): number {
+  if (linkedSaleIds.has(sale.id) || sale.method === "fiado") return 0;
+  return Math.min(sale.paid_amount, sale.total);
+}
+
+export interface DaySummary {
+  /** Ventas del día, más recientes primero. */
+  sales: Sale[];
+  /** Total vendido ese día. */
+  sold: number;
+  /** Dinero que entró ese día (ventas del día + pagos de deudas). */
+  received: number;
+  /** Parte de `received` que fue para pagar deudas de otros días. */
+  receivedFromOldDebts: number;
+  /** Lo que todavía deben de las ventas de ese día. */
+  owed: number;
+}
+
+export function summarizeDay(day: Date, sales: Sale[], payments: Payment[]): DaySummary {
+  const daySales = sales
+    .filter((s) => isSameDay(s.sale_date, day))
+    .sort((a, b) => +new Date(b.sale_date) - +new Date(a.sale_date));
+  const daySaleIds = new Set(daySales.map((s) => s.id));
+  const linkedSaleIds = new Set(
+    payments.filter((p) => p.sale_id).map((p) => p.sale_id as string)
+  );
+
+  const dayPayments = payments.filter((p) => isSameDay(p.paid_at, day));
+  const fromPayments = dayPayments.reduce((s, p) => s + p.amount, 0);
+  const receivedFromOldDebts = dayPayments
+    .filter((p) => !p.sale_id || !daySaleIds.has(p.sale_id))
+    .reduce((s, p) => s + p.amount, 0);
+  const legacy = daySales.reduce((s, x) => s + legacyPaidAtSale(x, linkedSaleIds), 0);
+
+  return {
+    sales: daySales,
+    sold: daySales.reduce((s, x) => s + x.total, 0),
+    received: fromPayments + legacy,
+    receivedFromOldDebts,
+    owed: daySales.reduce((s, x) => s + saleDebt(x), 0),
+  };
 }

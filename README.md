@@ -1,8 +1,9 @@
 # 🍰 Sarah & Tin
 
 App de gestión para la pastelería artesanal **Sarah & Tin**, hecha con cariño
-para que Camila administre productos, recetas, costos, ventas, caja, clientes,
-deudas, pedidos y reportes desde su teléfono o computador.
+para que Camila registre ventas en segundos, sepa quién le debe y vea qué pasó
+en el día, desde su teléfono o computador. Recetas, costos, gastos y reportes
+siguen disponibles en "Más".
 
 > Herramienta de **gestión interna**, no de contabilidad tributaria. Los
 > cálculos usan términos como "ganancia estimada", "costos" y "resultado".
@@ -97,14 +98,18 @@ supabase/schema.sql   Esquema completo + RLS
 - ✅ **Fase 1** — Configuración, identidad visual, layout, navegación, dashboard, auth.
 - ✅ **Fase 2** — Ingredientes, productos, recetas, costeo automático, margen, precio sugerido.
 - ✅ **Fase 3** — Clientes, ventas, deudas, pagos, recordatorio por WhatsApp.
-- ✅ **Fase 4** — Caja (abrir/cerrar/movimientos), gastos, compras de insumos.
+- ✅ **Fase 4** — Gastos y compras de insumos.
 - ✅ **Fase 5** — Pedidos con estados y agenda por fecha.
 - ✅ **Fase 6** — Inventario (stock bajo) y reportes de rentabilidad.
 - ✅ **Fase 7** — Pulido, responsive, accesibilidad, configuración editable.
+- ✅ **Fase 8** — Simplificación: Inicio = "¿qué pasó hoy?" (vendiste, recibiste,
+  te deben y ventas del día), botón "Registrar venta" siempre visible con 4
+  preguntas, "¿Quién me debe?" en Clientes y lo administrativo dentro de "Más".
 
 Todo interconectado: cambiar el costo de un ingrediente recalcula recetas y
-productos; una venta paga entra a la caja; un pago abona la deuda del cliente
-y entra a la caja; los reportes reflejan todo en tiempo real.
+productos; una venta que no se paga completa queda sola como deuda del cliente;
+un pago la descuenta automáticamente; lo pagado queda en `payments`, así
+"Recibiste" del día se calcula solo; los reportes reflejan todo en tiempo real.
 
 ## 📱 Instalar como app (PWA)
 

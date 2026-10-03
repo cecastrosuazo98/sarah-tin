@@ -1,6 +1,6 @@
 /**
  * Operaciones de negocio de Sarah & Tin.
- * Encapsulan la lógica que toca varias tablas (venta + ítems + caja,
+ * Encapsulan la lógica que toca varias tablas (venta + ítems + pago,
  * pago + aplicación a deudas, compra + inventario, etc.).
  */
 import {
@@ -131,6 +131,19 @@ export async function createSale(input: NewSaleInput): Promise<Sale> {
     });
   }
 
+  // Lo que pagó al momento de comprar queda como un pago ligado a la venta,
+  // así "Recibiste" del día se calcula solo, sumando los pagos.
+  if (paid > 0) {
+    await createSilent<Payment>(TABLES.payments, {
+      customer_id: input.customerId,
+      sale_id: sale.id,
+      amount: paid,
+      method: input.method === "fiado" ? "efectivo" : input.method,
+      note: "Pagó al comprar",
+      paid_at: sale.sale_date,
+    });
+  }
+
   // Descuenta inventario: stock de productos e ingredientes (según receta).
   await applyStockForItems(input.items, -1);
 
@@ -153,29 +166,34 @@ export async function deleteSale(saleId: string): Promise<void> {
   for (const it of items) {
     await remove(TABLES.sale_items, it.id);
   }
+  // Los pagos de esa venta también se van (si no, "Recibiste" quedaría inflado).
+  const linkedPayments = (await list<Payment>(TABLES.payments)).filter(
+    (p) => p.sale_id === saleId
+  );
+  for (const p of linkedPayments) {
+    await remove(TABLES.payments, p.id);
+  }
   await remove(TABLES.sales, saleId);
   emitChange();
 }
 
 // ---------------- Pagos de deuda ----------------
 
+/**
+ * Registra un pago de un cliente. Se aplica solo a sus ventas pendientes (las
+ * más antiguas primero, o solo a `saleId` si se indica). Se guarda una fila de
+ * pago por cada venta a la que se aplicó, para saber siempre qué pagó.
+ */
 export async function registerPayment(input: {
   customerId: string;
   amount: number;
-  method: PaymentMethod;
+  method?: PaymentMethod;
   note?: string;
   saleId?: string;
 }): Promise<void> {
-  await createSilent<Payment>(TABLES.payments, {
-    customer_id: input.customerId,
-    sale_id: input.saleId ?? null,
-    amount: input.amount,
-    method: input.method,
-    note: input.note ?? null,
-    paid_at: new Date().toISOString(),
-  });
+  const method = input.method ?? "efectivo";
+  const paidAt = new Date().toISOString();
 
-  // Aplica el pago a las ventas pendientes (más antiguas primero).
   const sales = (await list<Sale>(TABLES.sales))
     .filter(
       (s) =>
@@ -192,11 +210,31 @@ export async function registerPayment(input: {
     if (outstanding <= 0) continue;
     const applied = Math.min(outstanding, remaining);
     const newPaid = sale.paid_amount + applied;
+    await createSilent<Payment>(TABLES.payments, {
+      customer_id: input.customerId,
+      sale_id: sale.id,
+      amount: applied,
+      method,
+      note: input.note ?? null,
+      paid_at: paidAt,
+    });
     await updateSilent<Sale>(TABLES.sales, sale.id, {
       paid_amount: newPaid,
       status: newPaid >= sale.total ? "pagado" : "abono",
     });
     remaining -= applied;
+  }
+
+  // Si pagó más de lo que debía, el resto igual queda registrado.
+  if (remaining > 0) {
+    await createSilent<Payment>(TABLES.payments, {
+      customer_id: input.customerId,
+      sale_id: null,
+      amount: remaining,
+      method,
+      note: input.note ?? null,
+      paid_at: paidAt,
+    });
   }
 
   emitChange();

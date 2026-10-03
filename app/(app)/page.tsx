@@ -1,334 +1,254 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import {
-  TrendingUp,
-  Receipt,
-  HandCoins,
-  ShoppingCart,
-  Package,
-  UserPlus,
-  Banknote,
-  CalendarPlus,
-  Trophy,
-  ChevronRight,
-  Clock,
-  Lightbulb,
-  AlertTriangle,
-  Users,
-  Sparkles,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatCard } from "@/components/dashboard/StatCard";
-import { QuickAction } from "@/components/dashboard/QuickAction";
-import { SalesChart } from "@/components/dashboard/SalesChart";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
-import {
-  formatMoney,
-  formatPercent,
-  greeting,
-  formatDateLong,
-  formatDateShort,
-} from "@/lib/format";
-import { DEFAULT_USER_NAME } from "@/lib/constants";
+import { Button } from "@/components/ui/button";
+import { SaleRow } from "@/components/features/sales/SaleRow";
+import { SaleDetail } from "@/components/features/sales/SaleDetail";
+import { useSaleFlow } from "@/components/features/sales/SaleFlow";
+import { productEmoji } from "@/components/features/sales/sale-text";
+import { formatMoney, formatDateLong } from "@/lib/format";
 import { useTable } from "@/lib/data/hooks";
-import { useProductsEconomics } from "@/lib/data/derived";
 import { TABLES } from "@/lib/data/types";
-import type {
-  Sale,
-  SaleItem,
-  Expense,
-  Customer,
-  Order,
-  Ingredient,
-} from "@/lib/data/types";
-import {
-  computeDashboard,
-  salesByDay,
-  topProducts,
-  pendingCustomers,
-} from "@/lib/domain/finance";
+import type { Sale, SaleItem, Customer, Payment, Product } from "@/lib/data/types";
+import { summarizeDay, totalReceivable } from "@/lib/domain/finance";
+import { startOfDay, addDays, isSameDay, dayName } from "@/lib/domain/dates";
+import { cn } from "@/lib/utils";
 
-export default function DashboardPage() {
-  const { data: sales } = useTable<Sale>(TABLES.sales);
+/** Inicio = el día: cuánto vendiste, cuánto recibiste, quién quedó debiendo. */
+export default function InicioPage() {
+  const { data: sales, loading } = useTable<Sale>(TABLES.sales);
   const { data: saleItems } = useTable<SaleItem>(TABLES.sale_items);
-  const { data: expenses } = useTable<Expense>(TABLES.expenses);
+  const { data: payments } = useTable<Payment>(TABLES.payments);
   const { data: customers } = useTable<Customer>(TABLES.customers);
-  const { data: orders } = useTable<Order>(TABLES.orders);
-  const { data: ingredients } = useTable<Ingredient>(TABLES.ingredients);
-  const { products } = useProductsEconomics();
+  const { data: products, loading: loadingProducts } = useTable<Product>(TABLES.products);
+  const { openSale, lastSaleDate } = useSaleFlow();
+
+  // La fecha depende del reloj del navegador: se calcula solo en el cliente
+  // para que el HTML del servidor y el del navegador coincidan (hidratación).
+  const [now, setNow] = useState<Date | null>(null);
+  const [day, setDay] = useState<Date | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Los datos se recargan tras cada cambio: el esqueleto solo se muestra la primera vez.
+  const [ready, setReady] = useState(false);
+  const nowRef = useRef<Date | null>(null);
+
+  useEffect(() => {
+    const n = new Date();
+    nowRef.current = n;
+    setNow(n);
+    setDay(startOfDay(n));
+    // Si la app queda abierta y cambia el día, "Hoy" se actualiza al volver.
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      const prev = nowRef.current;
+      const fresh = new Date();
+      nowRef.current = fresh;
+      setNow(fresh);
+      if (prev && !isSameDay(prev, fresh)) {
+        setDay((d) => (d && isSameDay(d, prev) ? startOfDay(fresh) : d));
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
+
+  useEffect(() => {
+    if (!loading && !loadingProducts) setReady(true);
+  }, [loading, loadingProducts]);
+
+  // Al guardar una venta, se muestra el día en que quedó anotada.
+  useEffect(() => {
+    if (lastSaleDate) setDay(startOfDay(lastSaleDate));
+  }, [lastSaleDate]);
 
   const summary = useMemo(
-    () => computeDashboard({ sales, saleItems, expenses }),
-    [sales, saleItems, expenses]
+    () => (day ? summarizeDay(day, sales, payments) : null),
+    [day, sales, payments]
   );
-  const chart = useMemo(() => salesByDay(sales, 7), [sales]);
-  const top = useMemo(() => topProducts(saleItems, 4), [saleItems]);
-  const pending = useMemo(
-    () => pendingCustomers(customers, sales),
-    [customers, sales]
-  );
-  const upcoming = useMemo(
-    () =>
-      orders
-        .filter(
-          (o) =>
-            !["entregado", "cancelado"].includes(o.status) &&
-            o.order_date >= new Date().toISOString().slice(0, 10)
-        )
-        .sort((a, b) => a.order_date.localeCompare(b.order_date))
-        .slice(0, 3),
-    [orders]
-  );
+  // Igual que el total de "¿Quién me debe?" en Clientes.
+  const totalOwed = useMemo(() => {
+    const ids = new Set(customers.map((c) => c.id));
+    return totalReceivable(sales.filter((s) => s.customer_id && ids.has(s.customer_id)));
+  }, [sales, customers]);
 
-  const lowStock = ingredients.filter((i) => i.stock <= i.min_stock);
-  const belowTarget = products.filter((p) => p.econ.belowTarget);
+  const itemsBySale = useMemo(() => {
+    const map = new Map<string, SaleItem[]>();
+    for (const it of saleItems) {
+      const arr = map.get(it.sale_id) ?? [];
+      arr.push(it);
+      map.set(it.sale_id, arr);
+    }
+    return map;
+  }, [saleItems]);
 
-  const isEmpty =
-    sales.length === 0 && products.length === 0 && customers.length === 0;
+  const customerName = (id: string | null) =>
+    customers.find((c) => c.id === id)?.name ?? "Alguien de paso";
 
-  // La fecha/saludo dependen de la hora local del navegador: se calculan solo
-  // en el cliente para evitar diferencias con el HTML del servidor (hidratación).
-  const [now, setNow] = useState<Date | null>(null);
-  useEffect(() => setNow(new Date()), []);
+  const emojiFor = (saleId: string) => {
+    const first = itemsBySale.get(saleId)?.[0];
+    const product = products.find((p) => p.id === first?.product_id);
+    return productEmoji(product?.name ?? first?.name_snapshot, product?.category);
+  };
+
+  if (!now || !day || !summary || !ready) {
+    return (
+      <div className="space-y-4" aria-busy="true">
+        <div className="mx-auto h-14 w-48 animate-pulse rounded-2xl bg-peach-light/70" />
+        <div className="h-48 animate-pulse rounded-3xl bg-peach-light/60" />
+        <div className="h-20 animate-pulse rounded-2xl bg-peach-light/50" />
+        <div className="h-20 animate-pulse rounded-2xl bg-peach-light/50" />
+      </div>
+    );
+  }
+
+  const isToday = isSameDay(day, now);
+  const name = dayName(day, now);
+  const listTitle = isToday ? "Ventas de hoy" : name === "Ayer" ? "Ventas de ayer" : `Ventas del ${name}`;
+  const selected = sales.find((s) => s.id === selectedId) ?? null;
+  const firstTime = sales.length === 0 && products.length === 0;
 
   return (
-    <div className="space-y-6">
-      <header className="animate-fade-up">
-        <p className="min-h-[1.25rem] text-sm font-medium text-cocoa-light">
-          {now ? formatDateLong(now) : ""}
-        </p>
-        <h1 className="mt-0.5 font-display text-2xl font-extrabold text-cocoa sm:text-3xl">
-          {now ? greeting(now) : "Hola"}, {DEFAULT_USER_NAME} <span aria-hidden>💕</span>
-        </h1>
-        <p className="mt-1 text-cocoa-light">Este es el resumen de tu día.</p>
+    <div className="space-y-5">
+      {/* Navegación por día */}
+      <header className="flex items-center justify-between gap-2 animate-fade-up">
+        <DayButton onClick={() => setDay(addDays(day, -1))} label={dayName(addDays(day, -1), now)} side="left" />
+        <div className="min-w-0 text-center">
+          <h1 className="font-display text-3xl font-extrabold uppercase tracking-wide text-cocoa sm:text-4xl">
+            {name}
+          </h1>
+          <p className="truncate text-sm text-cocoa-light">{formatDateLong(day)}</p>
+          {!isToday && (
+            <button
+              type="button"
+              onClick={() => setDay(startOfDay(now))}
+              className="mt-1 text-xs font-semibold text-sarah-dark underline-offset-2 hover:underline"
+            >
+              Volver a hoy
+            </button>
+          )}
+        </div>
+        {isToday ? (
+          <span className="w-20" aria-hidden />
+        ) : (
+          <DayButton onClick={() => setDay(addDays(day, 1))} label={dayName(addDays(day, 1), now)} side="right" />
+        )}
       </header>
 
-      {isEmpty ? (
+      {firstTime ? (
         <EmptyState
           emoji="🍰"
           title="¡Bienvenida a Sarah & Tin!"
-          description="Empecemos por lo primero: agrega tus ingredientes y productos para calcular costos, o registra tu primera venta."
+          description="Para empezar, agrega lo que vendes con su precio. Después registrar una venta toma segundos."
           action={
-            <div className="flex flex-wrap justify-center gap-2">
-              <Link href="/productos" className="rounded-2xl bg-sarah px-5 py-2.5 text-sm font-semibold text-white shadow-soft">
-                Agregar producto
-              </Link>
-              <Link href="/ventas" className="rounded-2xl border border-peach-dark bg-white/70 px-5 py-2.5 text-sm font-semibold text-cocoa">
-                Registrar venta
-              </Link>
-            </div>
+            <Link href="/productos?nuevo=1" className="rounded-2xl bg-sarah px-5 py-2.5 text-sm font-semibold text-white shadow-soft">
+              Agregar mi primer producto
+            </Link>
           }
         />
       ) : (
         <>
-          <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-            <StatCard label="Ventas de hoy" value={formatMoney(summary.salesToday)} icon={ShoppingCart} tone="sarah" hint={`${summary.productsSoldToday} productos vendidos`} />
-            <StatCard label="Gastos del mes" value={formatMoney(summary.expensesMonth)} icon={Receipt} tone="gold" />
-            <StatCard label="Ganancia estimada" value={formatMoney(summary.estimatedProfit)} icon={TrendingUp} tone="success" hint="Ventas − gastos del mes" />
-            <StatCard label="Por cobrar" value={formatMoney(summary.receivable)} icon={HandCoins} tone="danger" hint={`${pending.length} clientes`} />
+          {/* Resumen del día */}
+          <section className="rounded-3xl border border-peach/60 bg-white/85 p-5 shadow-card animate-fade-up">
+            <p className="text-sm font-semibold text-cocoa-light">
+              {summary.sales.length === 1 ? "1 venta" : `${summary.sales.length} ventas`}
+            </p>
+            <div className="mt-2 space-y-3">
+              <SummaryLine label="Vendiste" value={summary.sold} className="text-cocoa" />
+              <div>
+                <SummaryLine label="Recibiste" value={summary.received} className="text-success" />
+                {summary.receivedFromOldDebts > 0 && (
+                  <p className="text-right text-xs text-cocoa-light">
+                    Incluye {formatMoney(summary.receivedFromOldDebts)} que te pagaron de deudas de otros días
+                  </p>
+                )}
+              </div>
+              <SummaryLine
+                label="Te deben"
+                value={summary.owed}
+                className={summary.owed > 0 ? "text-danger" : "text-cocoa-soft"}
+              />
+            </div>
           </section>
 
-          {summary.monthGrowth !== null && (
-            <div className="flex items-center gap-3 rounded-2xl border border-tin/40 bg-tin-50/70 px-4 py-3 animate-fade-up">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/70">
-                <Sparkles className="h-5 w-5 text-tin-dark" />
-              </div>
-              <p className="text-sm text-cocoa">
-                <span className="font-semibold">✨ Tu resumen. </span>
-                Este mes {summary.monthGrowth >= 0 ? "vendiste un " : "vendiste un "}
-                <span className="font-bold text-tin-dark">
-                  {formatPercent(Math.abs(summary.monthGrowth), 0)}
-                </span>{" "}
-                {summary.monthGrowth >= 0 ? "más" : "menos"} que el mes anterior.
-              </p>
-            </div>
-          )}
-
+          {/* Ventas del día */}
           <section className="animate-fade-up">
-            <h2 className="mb-3 font-display text-lg font-bold text-cocoa">Acciones rápidas</h2>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <QuickAction label="Nueva venta" icon={ShoppingCart} tone="sarah" href="/ventas" />
-              <QuickAction label="Nuevo pedido" icon={CalendarPlus} tone="tin" href="/pedidos" />
-              <QuickAction label="Registrar gasto" icon={Receipt} tone="gold" href="/gastos" />
-              <QuickAction label="Registrar pago" icon={Banknote} tone="cocoa" href="/clientes" />
-              <QuickAction label="Agregar producto" icon={Package} tone="sarah" href="/productos" />
-              <QuickAction label="Agregar cliente" icon={UserPlus} tone="tin" href="/clientes" />
-            </div>
-          </section>
-
-          <section className="grid gap-4 lg:grid-cols-3">
-            <Card className="lg:col-span-2 animate-fade-up">
-              <CardHeader className="flex-row items-center justify-between">
-                <CardTitle>Ventas de los últimos 7 días</CardTitle>
-                <span className="rounded-full bg-peach-light px-3 py-1 text-xs font-semibold text-cocoa">
-                  Semana: {formatMoney(summary.salesWeek)}
-                </span>
-              </CardHeader>
-              <CardContent>
-                <SalesChart data={chart} />
-              </CardContent>
-            </Card>
-
-            <Card className="animate-fade-up">
-              <CardHeader>
-                <CardTitle>Resumen del mes</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-3 rounded-xl bg-sarah-50 p-3">
-                  <TrendingUp className="h-6 w-6 text-sarah-dark" />
-                  <div>
-                    <p className="text-xs text-cocoa-light">Ventas del mes</p>
-                    <p className="font-display text-xl font-extrabold text-cocoa">
-                      {formatMoney(summary.salesMonth)}
-                    </p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-center">
-                  <div className="rounded-xl bg-peach-light/60 p-3">
-                    <p className="text-xs text-cocoa-light">Ganancia mes</p>
-                    <p className="font-bold text-success">{formatMoney(summary.estimatedProfit)}</p>
-                  </div>
-                  <div className="rounded-xl bg-peach-light/60 p-3">
-                    <p className="text-xs text-cocoa-light">Por cobrar</p>
-                    <p className="font-bold text-danger">{formatMoney(summary.receivable)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-
-          <section className="grid gap-4 lg:grid-cols-2">
-            <Card className="animate-fade-up">
-              <CardHeader className="flex-row items-center justify-between">
-                <CardTitle>Productos más vendidos</CardTitle>
-                <Trophy className="h-5 w-5 text-gold" />
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {top.length === 0 && <p className="text-sm text-cocoa-soft">Aún no hay ventas registradas.</p>}
-                {top.map((p, i) => (
-                  <div key={p.id} className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-peach-light/50">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-peach-light text-sm font-bold text-gold-dark">{i + 1}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-cocoa">{p.name}</p>
-                      <p className="text-xs text-cocoa-light">{p.units} unidades</p>
-                    </div>
-                    <p className="text-sm font-bold text-cocoa">{formatMoney(p.revenue)}</p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card className="animate-fade-up">
-              <CardHeader className="flex-row items-center justify-between">
-                <CardTitle>Clientes con pagos pendientes</CardTitle>
-                <Link href="/clientes" className="text-cocoa-light hover:text-sarah-dark">
-                  <ChevronRight className="h-5 w-5" />
-                </Link>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {pending.length === 0 && <p className="text-sm text-cocoa-soft">Nadie tiene deudas pendientes. 🎉</p>}
-                {pending.slice(0, 4).map((c) => (
-                  <Link key={c.id} href="/clientes" className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-peach-light/50">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-sarah-50 text-sm font-bold text-sarah-dark">{c.name.charAt(0)}</span>
-                    <p className="min-w-0 flex-1 truncate text-sm font-semibold text-cocoa">{c.name}</p>
-                    <span className="rounded-full bg-[#FBEDED] px-2.5 py-1 text-xs font-bold text-danger">Debe {formatMoney(c.amount)}</span>
-                  </Link>
-                ))}
-              </CardContent>
-            </Card>
-          </section>
-
-          {upcoming.length > 0 && (
-            <section>
-              <Card className="animate-fade-up">
-                <CardHeader className="flex-row items-center justify-between">
-                  <CardTitle>Pedidos próximos</CardTitle>
-                  <Link href="/pedidos" className="inline-flex items-center gap-1 text-xs font-semibold text-sarah-dark">
-                    Ver todos <ChevronRight className="h-4 w-4" />
-                  </Link>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {upcoming.map((o) => (
-                    <Link key={o.id} href="/pedidos" className="flex items-center gap-3 rounded-xl border border-peach/50 bg-white/60 p-3 transition hover:shadow-card">
-                      <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl bg-tin-50 leading-none">
-                        <span className="text-[0.65rem] font-semibold text-tin-dark">{formatDateShort(o.order_date).split(" ")[1]}</span>
-                        <span className="font-display text-base font-extrabold text-cocoa">{formatDateShort(o.order_date).split(" ")[0]}</span>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="truncate text-sm font-semibold text-cocoa">
-                            {customers.find((c) => c.id === o.customer_id)?.name ?? "Cliente"}
-                          </p>
-                          <span className="text-xs text-cocoa-soft">{o.code}</span>
-                        </div>
-                        {o.order_time && (
-                          <p className="mt-0.5 flex items-center gap-1 text-xs text-cocoa-soft">
-                            <Clock className="h-3 w-3" /> {o.order_time}
-                          </p>
-                        )}
-                      </div>
-                      <p className="text-sm font-bold text-cocoa">{formatMoney(o.total)}</p>
-                    </Link>
-                  ))}
-                </CardContent>
-              </Card>
-            </section>
-          )}
-
-          {(belowTarget.length > 0 || lowStock.length > 0 || pending.length > 0) && (
-            <section className="animate-fade-up">
-              <h2 className="mb-3 font-display text-lg font-bold text-cocoa">Para tener en cuenta</h2>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {belowTarget.length > 0 && (
-                  <TipCard icon={Lightbulb} tone="text-gold-dark" bg="bg-[#FBF1DA]/70" title="Margen">
-                    {belowTarget.length === 1
-                      ? `"${belowTarget[0].name}" tiene un margen de ${formatPercent(belowTarget[0].econ.margin, 0)}, bajo tu objetivo.`
-                      : `${belowTarget.length} productos están bajo tu margen objetivo.`}
-                  </TipCard>
-                )}
-                {lowStock.length > 0 && (
-                  <TipCard icon={AlertTriangle} tone="text-warning" bg="bg-[#FBF1DA]/60" title="Inventario">
-                    {lowStock.length === 1
-                      ? `"${lowStock[0].name}" está en stock bajo.`
-                      : `${lowStock.length} ingredientes están en stock bajo.`}
-                  </TipCard>
-                )}
-                {pending.length > 0 && (
-                  <TipCard icon={Users} tone="text-sarah-dark" bg="bg-sarah-50/70" title="Cuentas por cobrar">
-                    {`${pending.length} ${pending.length === 1 ? "cliente tiene un pago pendiente" : "clientes tienen pagos pendientes"} por ${formatMoney(summary.receivable)}.`}
-                  </TipCard>
+            <h2 className="mb-3 font-display text-lg font-bold text-cocoa">{listTitle}</h2>
+            {summary.sales.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-peach-dark bg-white/50 px-5 py-8 text-center">
+                <p className="text-cocoa-light">
+                  {isToday ? "Todavía no hay ventas hoy." : "Este día no hubo ventas."}
+                </p>
+                {isToday && (
+                  <Button className="mt-3" onClick={openSale}>
+                    <Plus className="h-4 w-4" /> Registrar venta
+                  </Button>
                 )}
               </div>
-            </section>
+            ) : (
+              <div className="space-y-2">
+                {summary.sales.map((s) => (
+                  <SaleRow
+                    key={s.id}
+                    sale={s}
+                    items={itemsBySale.get(s.id) ?? []}
+                    customerName={customerName(s.customer_id)}
+                    emoji={emojiFor(s.id)}
+                    onClick={() => setSelectedId(s.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+
+          {totalOwed > 0 && (
+            <Link
+              href="/clientes"
+              className="flex items-center justify-between gap-3 rounded-2xl bg-peach-light/60 px-4 py-3 text-sm text-cocoa transition hover:bg-peach-light"
+            >
+              <span>
+                Sumando todos los días, te deben <b className="text-danger">{formatMoney(totalOwed)}</b>
+              </span>
+              <span className="flex shrink-0 items-center font-semibold text-sarah-dark">
+                Ver quién <ChevronRight className="h-4 w-4" />
+              </span>
+            </Link>
           )}
         </>
       )}
+
+      <SaleDetail
+        sale={selected}
+        items={selected ? itemsBySale.get(selected.id) ?? [] : []}
+        customer={customers.find((c) => c.id === selected?.customer_id) ?? null}
+        onClose={() => setSelectedId(null)}
+      />
     </div>
   );
 }
 
-function TipCard({
-  icon: Icon,
-  tone,
-  bg,
-  title,
-  children,
-}: {
-  icon: typeof Lightbulb;
-  tone: string;
-  bg: string;
-  title: string;
-  children: React.ReactNode;
-}) {
+function SummaryLine({ label, value, className }: { label: string; value: number; className?: string }) {
   return (
-    <div className={`flex gap-3 rounded-2xl border border-peach/50 ${bg} p-4`}>
-      <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${tone}`} />
-      <div>
-        <p className="text-sm font-bold text-cocoa">{title}</p>
-        <p className="mt-0.5 text-sm text-cocoa-light">{children}</p>
-      </div>
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="text-lg font-semibold text-cocoa">{label}</span>
+      <span className={cn("font-display text-3xl font-extrabold", className)}>{formatMoney(value)}</span>
     </div>
+  );
+}
+
+function DayButton({ onClick, label, side }: { onClick: () => void; label: string; side: "left" | "right" }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-20 shrink-0 items-center justify-center gap-0.5 rounded-xl py-2 text-sm font-semibold text-cocoa-light transition hover:bg-peach-light hover:text-cocoa"
+      aria-label={`Ver ${label}`}
+    >
+      {side === "left" && <ChevronLeft className="h-5 w-5" />}
+      {label}
+      {side === "right" && <ChevronRight className="h-5 w-5" />}
+    </button>
   );
 }

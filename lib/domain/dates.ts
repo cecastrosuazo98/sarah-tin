@@ -62,3 +62,18 @@ export function resolveRange(key: RangeKey): { from: Date; to: Date; label: stri
       return { from: new Date(0), to: end, label: "Todo el tiempo" };
   }
 }
+
+/** Nombre humano de un día: "Hoy", "Ayer", "Mañana" o "1 oct". */
+export function dayName(day: Date, now = new Date()): string {
+  if (isSameDay(day, now)) return "Hoy";
+  if (isSameDay(day, addDays(now, -1))) return "Ayer";
+  if (isSameDay(day, addDays(now, 1))) return "Mañana";
+  return day.toLocaleDateString("es-CL", { day: "numeric", month: "short" });
+}
+
+/** Fecha local "YYYY-MM-DD" (para inputs de fecha, sin desfase de zona horaria). */
+export function toYmd(d: Date): string {
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}

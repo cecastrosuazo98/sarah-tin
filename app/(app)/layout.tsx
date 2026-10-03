@@ -2,6 +2,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { Topbar } from "@/components/layout/Topbar";
 import { Providers } from "@/components/layout/Providers";
+import { RegisterSaleButton } from "@/components/features/sales/SaleFlow";
 
 export default function AppLayout({
   children,
@@ -14,10 +15,11 @@ export default function AppLayout({
         <Sidebar />
         <div className="lg:pl-64">
           <Topbar />
-          <main className="mx-auto w-full max-w-5xl px-4 pb-[calc(6.5rem_+_env(safe-area-inset-bottom))] pt-4 sm:px-6 lg:pb-10 lg:pt-8">
+          <main className="mx-auto w-full max-w-5xl px-4 pb-[calc(10.5rem_+_env(safe-area-inset-bottom))] pt-4 sm:px-6 lg:pb-28 lg:pt-8">
             {children}
           </main>
         </div>
+        <RegisterSaleButton />
         <MobileNav />
       </div>
     </Providers>

@@ -161,7 +161,7 @@ export function OrderForm({ open, onClose }: { open: boolean; onClose: () => voi
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Abono / seña" hint="Opcional">
+          <Field label="¿Cuánto pagó por adelantado?" hint="Si no pagó nada, déjalo vacío">
             <MoneyInput value={deposit} onChange={setDeposit} />
           </Field>
         </div>

@@ -51,8 +51,8 @@ export function Modal({
           size === "md" ? "sm:max-w-md" : "sm:max-w-2xl"
         )}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-peach/60 p-5">
-          <div className="mx-auto -mt-2 mb-2 h-1.5 w-12 shrink-0 rounded-full bg-peach-dark sm:hidden" />
+        <div className="relative flex items-start justify-between gap-3 border-b border-peach/60 p-5">
+          <div className="absolute left-1/2 top-2 h-1.5 w-12 -translate-x-1/2 rounded-full bg-peach-dark sm:hidden" />
           <div className="min-w-0">
             <h2 className="font-display text-lg font-bold text-cocoa">{title}</h2>
             {description && (
