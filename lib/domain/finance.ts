@@ -2,8 +2,8 @@
  * Agregaciones: deudas y resumen del día.
  * Funciones puras sobre las filas del store.
  */
-import type { Sale, Payment } from "@/lib/data/types";
-import { inRange, isSameDay } from "./dates";
+import type { Sale, Payment, Customer } from "@/lib/data/types";
+import { inRange, isSameDay, startOfDay } from "./dates";
 
 export function sumInRange(
   sales: Sale[],
@@ -89,4 +89,40 @@ export function summarizeDay(day: Date, sales: Sale[], payments: Payment[]): Day
     receivedFromOldDebts,
     owed: daySales.reduce((s, x) => s + saleDebt(x), 0),
   };
+}
+
+// ---------------- ¿A quién cobrar? ----------------
+
+export interface Debtor {
+  customer: Customer;
+  debt: number;
+  /** Fecha de la venta impaga más antigua. */
+  since: string;
+  /** Días desde esa venta. */
+  days: number;
+}
+
+/** Quién debe, con la deuda más antigua primero (a quién cobrar antes). */
+export function debtors(customers: Customer[], sales: Sale[], now: Date): Debtor[] {
+  const today = startOfDay(now).getTime();
+  const result: Debtor[] = [];
+  for (const customer of customers) {
+    const unpaid = sales.filter((s) => s.customer_id === customer.id && saleDebt(s) > 0);
+    if (unpaid.length === 0) continue;
+    const since = unpaid.reduce((a, b) => (+new Date(a.sale_date) <= +new Date(b.sale_date) ? a : b)).sale_date;
+    result.push({
+      customer,
+      debt: unpaid.reduce((s, x) => s + saleDebt(x), 0),
+      since,
+      days: Math.max(0, Math.round((today - startOfDay(new Date(since)).getTime()) / 86400000)),
+    });
+  }
+  return result.sort((a, b) => b.days - a.days || b.debt - a.debt);
+}
+
+/** "de hoy", "desde ayer", "hace 12 días". */
+export function debtAge(days: number): string {
+  if (days <= 0) return "de hoy";
+  if (days === 1) return "desde ayer";
+  return `hace ${days} días`;
 }

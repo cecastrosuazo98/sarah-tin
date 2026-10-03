@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { ProductForm } from "@/components/features/products/ProductForm";
+import { WeeklyMenu } from "@/components/features/products/WeeklyMenu";
 import { productEmoji } from "@/components/features/sales/sale-text";
 import { useProductsEconomics, type ProductWithEconomics } from "@/lib/data/derived";
 import { remove } from "@/lib/data/client";
@@ -48,7 +49,7 @@ export default function ProductosPage() {
     <div className="space-y-6">
       <PageHeader
         title="Productos"
-        subtitle="Lo que vendes y a qué precio."
+        subtitle="Lo que vendes, a qué precio y qué día."
         action={
           <Button variant="outline" onClick={() => { setEditing(null); setFormOpen(true); }}>
             <Plus className="h-4 w-4" /> Nuevo
@@ -93,6 +94,8 @@ export default function ProductosPage() {
           ))}
         </div>
       )}
+
+      {!query && filter === "Todas" && <WeeklyMenu products={products} />}
 
       <ProductForm
         open={formOpen}

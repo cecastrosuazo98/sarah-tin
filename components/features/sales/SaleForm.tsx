@@ -20,6 +20,7 @@ import { toYmd } from "@/lib/domain/dates";
 import { cn } from "@/lib/utils";
 import { productEmoji, itemsText } from "./sale-text";
 import { PayOption, ResultBox, type PayMode } from "./pay-ui";
+import { sortForSelling, inMenu } from "@/lib/domain/planning";
 
 type CartLine = { productId: string | null; name: string; quantity: number; unitPrice: number };
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -106,16 +107,19 @@ export function SaleForm({
     }
   };
 
-  // ---- Paso 2: productos, los más vendidos primero ----
-  const sortedProducts = useMemo(() => {
-    const sold = new Map<string, number>();
-    for (const it of saleItems) {
-      if (it.product_id) sold.set(it.product_id, (sold.get(it.product_id) ?? 0) + it.quantity);
-    }
-    return products
-      .filter((p) => p.is_active)
-      .sort((a, b) => (sold.get(b.id) ?? 0) - (sold.get(a.id) ?? 0) || a.name.localeCompare(b.name));
-  }, [products, saleItems]);
+  // ---- Paso 2: productos. Primero el menú de hoy, después lo que más se
+  // vende este día de la semana y luego lo más vendido en general. ----
+  const weekday = new Date().getDay();
+  const sortedProducts = useMemo(
+    () =>
+      sortForSelling(
+        products.filter((p) => p.is_active),
+        sales,
+        saleItems,
+        new Date()
+      ).sorted,
+    [products, sales, saleItems]
+  );
 
   const pickProduct = (p: Product) => {
     const existing = cart.find((l) => l.productId === p.id);
@@ -327,8 +331,16 @@ export function SaleForm({
                       key={p.id}
                       type="button"
                       onClick={() => pickProduct(p)}
-                      className="flex flex-col items-center gap-1 rounded-2xl border border-peach/60 bg-white/80 p-3 text-center shadow-card transition active:scale-95 hover:border-sarah"
+                      className={cn(
+                        "relative flex flex-col items-center gap-1 rounded-2xl border p-3 text-center shadow-card transition active:scale-95 hover:border-sarah",
+                        inMenu(p, weekday) ? "border-sarah/50 bg-sarah-50" : "border-peach/60 bg-white/80"
+                      )}
                     >
+                      {inMenu(p, weekday) && (
+                        <span className="absolute right-2 top-2 rounded-full bg-sarah px-2 py-0.5 text-[0.65rem] font-bold text-white">
+                          Hoy
+                        </span>
+                      )}
                       <span className="text-3xl" aria-hidden>{productEmoji(p.name, p.category)}</span>
                       <span className="line-clamp-2 text-sm font-semibold leading-tight text-cocoa">{p.name}</span>
                       <span className="text-sm font-bold text-sarah-dark">

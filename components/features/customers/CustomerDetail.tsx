@@ -13,7 +13,7 @@ import { TABLES } from "@/lib/data/types";
 import type { Customer, Sale, SaleItem, Payment } from "@/lib/data/types";
 import { customerDebt, saleDebt } from "@/lib/domain/finance";
 import { formatMoney } from "@/lib/format";
-import { BRAND } from "@/lib/constants";
+import { reminderMessage, whatsappLink } from "./whatsapp";
 
 const dayMonth = (d: string) =>
   new Date(d).toLocaleDateString("es-CL", { day: "numeric", month: "long" });
@@ -37,7 +37,6 @@ export function CustomerDetail({
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const debt = customer ? customerDebt(customer.id, sales) : 0;
-  const firstName = customer?.name.split(" ")[0] ?? "";
 
   const mySales = useMemo(
     () =>
@@ -65,9 +64,7 @@ export function CustomerDetail({
 
   const itemsOf = (saleId: string) => saleItems.filter((it) => it.sale_id === saleId);
 
-  const defaultMessage = customer
-    ? `Hola ${firstName}, te escribimos de ${BRAND.name} para recordarte que nos quedaste debiendo ${formatMoney(debt)}.\n\n¡Muchas gracias por preferirnos!`
-    : "";
+  const defaultMessage = customer ? reminderMessage(customer.name, debt) : "";
   const [message, setMessage] = useState(defaultMessage);
 
   const openReminder = () => {
@@ -77,8 +74,7 @@ export function CustomerDetail({
 
   const sendWhatsApp = () => {
     if (!customer?.phone) return;
-    const phone = customer.phone.replace(/\D/g, "");
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank");
+    window.open(whatsappLink(customer.phone, message), "_blank");
     setReminderOpen(false);
   };
 

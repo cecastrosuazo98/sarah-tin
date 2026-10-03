@@ -80,6 +80,8 @@ export interface Product extends BaseRow {
   additional_cost: number; // costos adicionales por unidad (envase, etc.)
   stock: number;
   is_active: boolean;
+  /** Menú: días de la semana en que se vende (0 = domingo … 6 = sábado). */
+  sale_days?: number[] | null;
 }
 
 export interface Customer extends BaseRow {

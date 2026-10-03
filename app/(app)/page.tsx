@@ -9,15 +9,21 @@ import { SaleRow } from "@/components/features/sales/SaleRow";
 import { SaleDetail } from "@/components/features/sales/SaleDetail";
 import { useSaleFlow } from "@/components/features/sales/SaleFlow";
 import { productEmoji } from "@/components/features/sales/sale-text";
+import { DayPlanCard } from "@/components/features/planning/DayPlanCard";
+import { CollectCard } from "@/components/features/customers/CollectCard";
 import { formatMoney, formatDateLong } from "@/lib/format";
 import { useTable } from "@/lib/data/hooks";
 import { TABLES } from "@/lib/data/types";
-import type { Sale, SaleItem, Customer, Payment, Product, Order } from "@/lib/data/types";
-import { summarizeDay, totalReceivable } from "@/lib/domain/finance";
-import { startOfDay, addDays, isSameDay, dayName, toYmd } from "@/lib/domain/dates";
+import type { Sale, SaleItem, Customer, Payment, Product, Order, OrderItem } from "@/lib/data/types";
+import { summarizeDay, debtors as debtorsOf } from "@/lib/domain/finance";
+import { dayPlan } from "@/lib/domain/planning";
+import { startOfDay, addDays, isSameDay, dayName } from "@/lib/domain/dates";
 import { cn } from "@/lib/utils";
 
-/** Inicio = el día: cuánto vendiste, cuánto recibiste, quién quedó debiendo. */
+/**
+ * Inicio = el día: cuánto vendiste y recibiste, qué preparar, a quién cobrar
+ * y las ventas. Se puede mirar hacia atrás y también "Mañana" (para preparar).
+ */
 export default function InicioPage() {
   const { data: sales, loading } = useTable<Sale>(TABLES.sales);
   const { data: saleItems } = useTable<SaleItem>(TABLES.sale_items);
@@ -25,6 +31,7 @@ export default function InicioPage() {
   const { data: customers } = useTable<Customer>(TABLES.customers);
   const { data: products, loading: loadingProducts } = useTable<Product>(TABLES.products);
   const { data: orders } = useTable<Order>(TABLES.orders);
+  const { data: orderItems } = useTable<OrderItem>(TABLES.order_items);
   const { openSale, lastSaleDate } = useSaleFlow();
 
   // La fecha depende del reloj del navegador: se calcula solo en el cliente
@@ -69,11 +76,14 @@ export default function InicioPage() {
     () => (day ? summarizeDay(day, sales, payments) : null),
     [day, sales, payments]
   );
-  // Igual que el total de "¿Quién me debe?" en Clientes.
-  const totalOwed = useMemo(() => {
-    const ids = new Set(customers.map((c) => c.id));
-    return totalReceivable(sales.filter((s) => s.customer_id && ids.has(s.customer_id)));
-  }, [sales, customers]);
+  const plan = useMemo(
+    () =>
+      day && now
+        ? dayPlan({ day, now, orders, orderItems, products, sales, saleItems })
+        : null,
+    [day, now, orders, orderItems, products, sales, saleItems]
+  );
+  const debtors = useMemo(() => (now ? debtorsOf(customers, sales, now) : []), [customers, sales, now]);
 
   const itemsBySale = useMemo(() => {
     const map = new Map<string, SaleItem[]>();
@@ -94,7 +104,7 @@ export default function InicioPage() {
     return productEmoji(product?.name ?? first?.name_snapshot, product?.category);
   };
 
-  if (!now || !day || !summary || !ready) {
+  if (!now || !day || !summary || !plan || !ready) {
     return (
       <div className="space-y-4" aria-busy="true">
         <div className="mx-auto h-14 w-48 animate-pulse rounded-2xl bg-peach-light/70" />
@@ -106,15 +116,11 @@ export default function InicioPage() {
   }
 
   const isToday = isSameDay(day, now);
+  const isTomorrow = isSameDay(day, addDays(now, 1));
   const name = dayName(day, now);
   const listTitle = isToday ? "Ventas de hoy" : name === "Ayer" ? "Ventas de ayer" : `Ventas del ${name}`;
   const selected = sales.find((s) => s.id === selectedId) ?? null;
   const firstTime = sales.length === 0 && products.length === 0;
-  const ordersToday = isToday
-    ? orders.filter(
-        (o) => o.order_date <= toYmd(now) && o.status !== "entregado" && o.status !== "cancelado"
-      ).length
-    : 0;
 
   return (
     <div className="space-y-5">
@@ -136,7 +142,7 @@ export default function InicioPage() {
             </button>
           )}
         </div>
-        {isToday ? (
+        {isTomorrow ? (
           <span className="w-20" aria-hidden />
         ) : (
           <DayButton onClick={() => setDay(addDays(day, 1))} label={dayName(addDays(day, 1), now)} side="right" />
@@ -156,83 +162,82 @@ export default function InicioPage() {
         />
       ) : (
         <>
-          {ordersToday > 0 && (
-            <Link
-              href="/pedidos"
-              className="flex items-center justify-between gap-3 rounded-2xl border border-tin/40 bg-tin-50/80 px-4 py-3 text-cocoa transition hover:bg-tin-50"
-            >
-              <span className="font-semibold">
-                📋 {ordersToday === 1 ? "Tienes 1 pedido para entregar" : `Tienes ${ordersToday} pedidos para entregar`}
-              </span>
-              <ChevronRight className="h-5 w-5 shrink-0 text-tin-dark" />
-            </Link>
-          )}
-
-          {/* Resumen del día */}
-          <section className="rounded-3xl border border-peach/60 bg-white/85 p-5 shadow-card animate-fade-up">
-            <p className="text-sm font-semibold text-cocoa-light">
-              {summary.sales.length === 1 ? "1 venta" : `${summary.sales.length} ventas`}
-            </p>
-            <div className="mt-2 space-y-3">
-              <SummaryLine label="Vendiste" value={summary.sold} className="text-cocoa" />
-              <div>
-                <SummaryLine label="Recibiste" value={summary.received} className="text-success" />
-                {summary.receivedFromOldDebts > 0 && (
-                  <p className="text-right text-xs text-cocoa-light">
-                    Incluye {formatMoney(summary.receivedFromOldDebts)} de deudas anteriores o adelantos de pedidos
-                  </p>
-                )}
-              </div>
-              <SummaryLine
-                label="Te deben"
-                value={summary.owed}
-                className={summary.owed > 0 ? "text-danger" : "text-cocoa-soft"}
-              />
-            </div>
-          </section>
-
-          {/* Ventas del día */}
-          <section className="animate-fade-up">
-            <h2 className="mb-3 font-display text-lg font-bold text-cocoa">{listTitle}</h2>
-            {summary.sales.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-peach-dark bg-white/50 px-5 py-8 text-center">
-                <p className="text-cocoa-light">
-                  {isToday ? "Todavía no hay ventas hoy." : "Este día no hubo ventas."}
+          {isTomorrow ? (
+            <DayPlanCard
+              title="Para preparar mañana"
+              rows={plan.rows}
+              orderCount={plan.orderCount}
+              weekday={day.getDay()}
+              emptyText="Mañana no tienes pedidos. Cuando registres más ventas, aquí verás lo que sueles vender ese día."
+            />
+          ) : (
+            <>
+              {/* Resumen del día */}
+              <section className="rounded-3xl border border-peach/60 bg-white/85 p-5 shadow-card animate-fade-up">
+                <p className="text-sm font-semibold text-cocoa-light">
+                  {summary.sales.length === 1 ? "1 venta" : `${summary.sales.length} ventas`}
                 </p>
-                {isToday && (
-                  <Button className="mt-3" onClick={openSale}>
-                    <Plus className="h-4 w-4" /> Registrar venta
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {summary.sales.map((s) => (
-                  <SaleRow
-                    key={s.id}
-                    sale={s}
-                    items={itemsBySale.get(s.id) ?? []}
-                    customerName={customerName(s.customer_id)}
-                    emoji={emojiFor(s.id)}
-                    onClick={() => setSelectedId(s.id)}
+                <div className="mt-2 space-y-3">
+                  <SummaryLine label="Vendiste" value={summary.sold} className="text-cocoa" />
+                  <div>
+                    <SummaryLine label="Recibiste" value={summary.received} className="text-success" />
+                    {summary.receivedFromOldDebts > 0 && (
+                      <p className="text-right text-xs text-cocoa-light">
+                        Incluye {formatMoney(summary.receivedFromOldDebts)} de deudas anteriores o adelantos de pedidos
+                      </p>
+                    )}
+                  </div>
+                  <SummaryLine
+                    label="Te deben"
+                    value={summary.owed}
+                    className={summary.owed > 0 ? "text-danger" : "text-cocoa-soft"}
                   />
-                ))}
-              </div>
-            )}
-          </section>
+                </div>
+              </section>
 
-          {totalOwed > 0 && (
-            <Link
-              href="/clientes"
-              className="flex items-center justify-between gap-3 rounded-2xl bg-peach-light/60 px-4 py-3 text-sm text-cocoa transition hover:bg-peach-light"
-            >
-              <span>
-                Sumando todos los días, te deben <b className="text-danger">{formatMoney(totalOwed)}</b>
-              </span>
-              <span className="flex shrink-0 items-center font-semibold text-sarah-dark">
-                Ver quién <ChevronRight className="h-4 w-4" />
-              </span>
-            </Link>
+              {isToday && (
+                <>
+                  <DayPlanCard
+                    title="Para preparar hoy"
+                    rows={plan.rows}
+                    orderCount={plan.orderCount}
+                    weekday={day.getDay()}
+                    emptyText={null}
+                  />
+                  <CollectCard debtors={debtors} />
+                </>
+              )}
+
+              {/* Ventas del día */}
+              <section className="animate-fade-up">
+                <h2 className="mb-3 font-display text-lg font-bold text-cocoa">{listTitle}</h2>
+                {summary.sales.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-peach-dark bg-white/50 px-5 py-8 text-center">
+                    <p className="text-cocoa-light">
+                      {isToday ? "Todavía no hay ventas hoy." : "Este día no hubo ventas."}
+                    </p>
+                    {isToday && (
+                      <Button className="mt-3" onClick={openSale}>
+                        <Plus className="h-4 w-4" /> Registrar venta
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {summary.sales.map((s) => (
+                      <SaleRow
+                        key={s.id}
+                        sale={s}
+                        items={itemsBySale.get(s.id) ?? []}
+                        customerName={customerName(s.customer_id)}
+                        emoji={emojiFor(s.id)}
+                        onClick={() => setSelectedId(s.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            </>
           )}
         </>
       )}

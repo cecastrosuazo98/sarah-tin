@@ -188,9 +188,12 @@ create table if not exists public.products (
   additional_cost numeric(12,2) not null default 0,
   stock numeric(12,2) not null default 0,
   is_active boolean not null default true,
+  sale_days smallint[] not null default '{}', -- menú: días que se vende (0=domingo … 6=sábado)
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+-- Para bases creadas antes del menú por día.
+alter table public.products add column if not exists sale_days smallint[] not null default '{}';
 drop trigger if exists trg_products_updated on public.products;
 create trigger trg_products_updated before update on public.products
   for each row execute function public.set_updated_at();

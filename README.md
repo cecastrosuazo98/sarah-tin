@@ -108,6 +108,14 @@ supabase/schema.sql   Esquema completo + RLS
   Pedidos: "Lo entregué" lo anota como venta (y deuda si falta plata); el
   adelanto cuenta como dinero recibido el día que se pagó. Productos: solo
   nombre y precio a la vista; costos y receta en "Más detalles".
+- ✅ **Fase 9** — Organizar el día: "Para preparar hoy/mañana" (pedidos + lo que
+  sueles vender ese día de la semana + menú), "Menú de la semana" en Productos,
+  productos del día primero al vender y "¿A quién cobrar?" con las deudas más
+  antiguas primero (WhatsApp y "Me pagó").
+
+> **Si ya usas Supabase:** para el menú por día ejecuta una vez
+> [`supabase/migrations/001_menu_por_dia.sql`](supabase/migrations/001_menu_por_dia.sql)
+> en **SQL Editor**. Sin eso, todo lo demás funciona igual.
 
 Todo interconectado: cambiar el costo de un ingrediente recalcula recetas y
 productos; una venta que no se paga completa queda sola como deuda del cliente;

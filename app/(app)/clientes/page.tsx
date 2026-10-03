@@ -17,7 +17,7 @@ import { remove } from "@/lib/data/client";
 import { getErrorMessage } from "@/lib/data/error";
 import { TABLES } from "@/lib/data/types";
 import type { Customer, Sale } from "@/lib/data/types";
-import { customerDebt } from "@/lib/domain/finance";
+import { customerDebt, debtors as debtorsOf, debtAge } from "@/lib/domain/finance";
 import { formatMoney } from "@/lib/format";
 
 export default function ClientesPage() {
@@ -31,17 +31,15 @@ export default function ClientesPage() {
   const [query, setQuery] = useState("");
   useAutoOpen(() => setFormOpen(true));
 
-  const withDebt = useMemo(
-    () => customers.map((c) => ({ ...c, debt: customerDebt(c.id, sales) })),
-    [customers, sales]
-  );
-  const debtors = withDebt.filter((c) => c.debt > 0).sort((a, b) => b.debt - a.debt);
-  const totalOwed = debtors.reduce((s, c) => s + c.debt, 0);
-  const others = withDebt
-    .filter((c) => c.debt <= 0 && matchesSearch(query, c.name, c.phone))
+  // Las deudas más antiguas primero: a quién conviene cobrar antes.
+  const debtors = useMemo(() => debtorsOf(customers, sales, new Date()), [customers, sales]);
+  const totalOwed = debtors.reduce((s, d) => s + d.debt, 0);
+  const owingIds = new Set(debtors.map((d) => d.customer.id));
+  const others = customers
+    .filter((c) => !owingIds.has(c.id) && matchesSearch(query, c.name, c.phone))
     .sort((a, b) => a.name.localeCompare(b.name));
   const searching = query.trim().length > 0;
-  const visibleDebtors = debtors.filter((c) => matchesSearch(query, c.name, c.phone));
+  const visibleDebtors = debtors.filter((d) => matchesSearch(query, d.customer.name, d.customer.phone));
 
   return (
     <div className="space-y-6">
@@ -72,20 +70,26 @@ export default function ClientesPage() {
           {/* ¿Quién me debe? */}
           <section className="rounded-3xl border border-peach/60 bg-white/80 p-4 shadow-card">
             <h2 className="font-display text-xl font-extrabold text-cocoa">¿Quién me debe?</h2>
+            {debtors.length > 1 && <p className="text-xs text-cocoa-light">Primero la deuda más antigua.</p>}
             {debtors.length === 0 ? (
               <p className="mt-2 text-cocoa-light">Nadie te debe. 🎉</p>
             ) : (
               <>
                 <div className="mt-2 divide-y divide-peach/50">
-                  {visibleDebtors.map((c) => (
+                  {visibleDebtors.map((d) => (
                     <button
-                      key={c.id}
+                      key={d.customer.id}
                       type="button"
-                      onClick={() => setDetail(c)}
+                      onClick={() => setDetail(d.customer)}
                       className="flex w-full items-center gap-3 py-3 text-left"
                     >
-                      <span className="min-w-0 flex-1 truncate text-lg font-semibold text-cocoa">{c.name}</span>
-                      <span className="font-display text-lg font-extrabold text-danger">{formatMoney(c.debt)}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-lg font-semibold text-cocoa">{d.customer.name}</span>
+                        <span className={`block text-xs ${d.days >= 14 ? "font-semibold text-danger" : "text-cocoa-light"}`}>
+                          {debtAge(d.days)}
+                        </span>
+                      </span>
+                      <span className="font-display text-lg font-extrabold text-danger">{formatMoney(d.debt)}</span>
                       <ChevronRight className="h-5 w-5 text-cocoa-soft" />
                     </button>
                   ))}
