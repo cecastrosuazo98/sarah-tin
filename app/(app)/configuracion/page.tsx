@@ -12,6 +12,7 @@ import { Field, Input, Select } from "@/components/ui/field";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { InstallCard } from "@/components/pwa/InstallCard";
+import { SyncPanel } from "@/components/features/sync/SyncPanel";
 import { useSettings, saveSettings, type Settings } from "@/lib/data/settings";
 import { usingSupabase } from "@/lib/data/client";
 import { PAYMENT_METHODS } from "@/lib/constants";
@@ -51,6 +52,8 @@ export default function ConfiguracionPage() {
       <PageHeader title="Configuración" subtitle="Ajusta tu negocio a tu gusto." />
 
       <InstallCard />
+
+      <SyncPanel />
 
       <Card className="animate-fade-up">
         <CardHeader className="flex-row items-center gap-2">

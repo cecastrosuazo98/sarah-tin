@@ -1,0 +1,1790 @@
+{
+  "version": 1,
+  "title": "Matriz Sarah & Tin",
+  "technical_columns": [
+    {
+      "key": "_version",
+      "header": "_versión",
+      "help": "Versión del registro en la base. No editar."
+    },
+    {
+      "key": "_hash",
+      "header": "_huella",
+      "help": "Huella de las columnas editables en la última sincronización. No editar."
+    },
+    {
+      "key": "_estado_sync",
+      "header": "_estado_sync",
+      "help": "OK, PENDIENTE, CONFLICTO o ERROR: motivo."
+    },
+    {
+      "key": "_actualizado",
+      "header": "_actualizado",
+      "help": "Fecha y hora de la última sincronización de la fila."
+    }
+  ],
+  "groups": {
+    "A": {
+      "name": "Configuración",
+      "color": "D24D77",
+      "help": "César edita aquí. Los cambios se aplican a la app al sincronizar."
+    },
+    "B": {
+      "name": "Operación",
+      "color": "8FA7B8",
+      "help": "Se llena desde la app. Solo algunas columnas (blancas) se pueden corregir aquí."
+    },
+    "C": {
+      "name": "Análisis",
+      "color": "C9A227",
+      "help": "Fórmulas automáticas sobre los datos. No escribir."
+    }
+  },
+  "tabs": [
+    {
+      "name": "Parametros",
+      "group": "A",
+      "table": "business_settings",
+      "kind": "params",
+      "allow_insert": false,
+      "columns": [
+        {
+          "key": "id",
+          "header": "Clave",
+          "type": "id"
+        },
+        {
+          "key": "label",
+          "header": "Parámetro",
+          "type": "text"
+        },
+        {
+          "key": "value",
+          "header": "Valor",
+          "type": "text",
+          "edit": true
+        },
+        {
+          "key": "help",
+          "header": "Explicación",
+          "type": "text",
+          "width": 60
+        }
+      ],
+      "params": [
+        {
+          "key": "name",
+          "label": "Nombre del negocio",
+          "type": "text",
+          "field": "name",
+          "help": "Aparece en la app."
+        },
+        {
+          "key": "target_margin",
+          "label": "Margen objetivo",
+          "type": "pct",
+          "field": "target_margin",
+          "help": "Ganancia sobre el precio de venta. Ej: 60% → precio = costo / (1 − 0,60)."
+        },
+        {
+          "key": "rounding",
+          "label": "Redondeo de precios ($)",
+          "type": "int",
+          "field": "rounding",
+          "help": "El precio sugerido se redondea hacia arriba a este múltiplo."
+        },
+        {
+          "key": "phone",
+          "label": "Teléfono del negocio",
+          "type": "text",
+          "field": "phone"
+        },
+        {
+          "key": "address",
+          "label": "Dirección",
+          "type": "text",
+          "field": "address"
+        },
+        {
+          "key": "descontar_ingredientes_en",
+          "label": "Descontar ingredientes en",
+          "type": "enum",
+          "options": [
+            "venta",
+            "produccion"
+          ],
+          "help": "venta: al vender se descuentan ingredientes de la receta. produccion: se descuentan al registrar producción."
+        },
+        {
+          "key": "politica_costo_compra",
+          "label": "Costo del ingrediente al comprar",
+          "type": "enum",
+          "options": [
+            "ultimo",
+            "promedio"
+          ],
+          "help": "ultimo: el costo pasa a ser el de la última compra. promedio: promedio ponderado con el stock."
+        },
+        {
+          "key": "costo_mano_obra_hora",
+          "label": "Costo mano de obra por hora ($)",
+          "type": "money",
+          "help": "Se usa con los minutos de cada receta. 0 = no se considera."
+        },
+        {
+          "key": "abono_minimo_pct",
+          "label": "Abono mínimo sugerido en pedidos",
+          "type": "pct",
+          "help": "Solo sugerencia en la app; no bloquea."
+        },
+        {
+          "key": "dias_alerta_pedido",
+          "label": "Días de anticipación para alertas",
+          "type": "int",
+          "help": "Pedidos que se entregan dentro de estos días aparecen como urgentes."
+        },
+        {
+          "key": "dias_costo_desactualizado",
+          "label": "Días para marcar costo desactualizado",
+          "type": "int",
+          "help": "Ingredientes sin compra en más días quedan marcados para revisar."
+        },
+        {
+          "key": "estado_inicial_pedido",
+          "label": "Estado inicial de pedidos",
+          "type": "text",
+          "help": "Código de Estados_Pedido."
+        }
+      ]
+    },
+    {
+      "name": "Metodos_Pago",
+      "group": "A",
+      "table": "payment_methods",
+      "allow_insert": true,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "code",
+          "header": "Código",
+          "type": "code",
+          "edit": true,
+          "required": true,
+          "help": "Sin espacios ni tildes. No cambiar si ya se usó."
+        },
+        {
+          "key": "label",
+          "header": "Nombre",
+          "type": "text",
+          "edit": true,
+          "required": true
+        },
+        {
+          "key": "sort",
+          "header": "Orden",
+          "type": "int",
+          "edit": true
+        },
+        {
+          "key": "is_active",
+          "header": "Activo",
+          "type": "bool",
+          "edit": true
+        }
+      ]
+    },
+    {
+      "name": "Estados_Pedido",
+      "group": "A",
+      "table": "order_statuses",
+      "allow_insert": true,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "code",
+          "header": "Código",
+          "type": "code",
+          "edit": true,
+          "required": true,
+          "help": "entregado y cancelado son especiales: no los renombres."
+        },
+        {
+          "key": "label",
+          "header": "Nombre",
+          "type": "text",
+          "edit": true,
+          "required": true
+        },
+        {
+          "key": "sort",
+          "header": "Orden",
+          "type": "int",
+          "edit": true
+        },
+        {
+          "key": "is_final",
+          "header": "Es final",
+          "type": "bool",
+          "edit": true
+        },
+        {
+          "key": "is_active",
+          "header": "Activo",
+          "type": "bool",
+          "edit": true
+        }
+      ]
+    },
+    {
+      "name": "Canales",
+      "group": "A",
+      "table": "channels",
+      "allow_insert": true,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "name",
+          "header": "Canal",
+          "type": "text",
+          "edit": true,
+          "required": true,
+          "help": "Instagram, WhatsApp, feria, directo…"
+        },
+        {
+          "key": "is_active",
+          "header": "Activo",
+          "type": "bool",
+          "edit": true
+        }
+      ]
+    },
+    {
+      "name": "Categorias",
+      "group": "A",
+      "table": "categories",
+      "allow_insert": true,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "name",
+          "header": "Categoría",
+          "type": "text",
+          "edit": true,
+          "required": true
+        },
+        {
+          "key": "kind",
+          "header": "Tipo",
+          "type": "enum",
+          "options": [
+            "producto",
+            "gasto",
+            "ingrediente"
+          ],
+          "edit": true,
+          "required": true
+        },
+        {
+          "key": "is_active",
+          "header": "Activo",
+          "type": "bool",
+          "edit": true
+        }
+      ]
+    },
+    {
+      "name": "Proveedores",
+      "group": "A",
+      "table": "suppliers",
+      "allow_insert": true,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "name",
+          "header": "Proveedor",
+          "type": "text",
+          "edit": true,
+          "required": true
+        },
+        {
+          "key": "phone",
+          "header": "Teléfono",
+          "type": "text",
+          "edit": true
+        },
+        {
+          "key": "notes",
+          "header": "Notas",
+          "type": "text",
+          "edit": true
+        },
+        {
+          "key": "is_active",
+          "header": "Activo",
+          "type": "bool",
+          "edit": true
+        }
+      ]
+    },
+    {
+      "name": "Ingredientes",
+      "group": "A",
+      "table": "ingredients",
+      "allow_insert": true,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "name",
+          "header": "Ingrediente",
+          "type": "text",
+          "edit": true,
+          "required": true
+        },
+        {
+          "key": "category",
+          "header": "Categoría",
+          "type": "text",
+          "edit": true
+        },
+        {
+          "key": "unit",
+          "header": "Unidad base",
+          "type": "enum",
+          "options": [
+            "g",
+            "ml",
+            "unidad"
+          ],
+          "edit": true,
+          "required": true,
+          "help": "g para peso, ml para líquidos, unidad para huevos/moldes."
+        },
+        {
+          "key": "cost_per_unit",
+          "header": "Costo por unidad base",
+          "type": "num",
+          "edit": true,
+          "help": "$ por g, ml o unidad. Ej: harina a $1.500 el kg → 1,5."
+        },
+        {
+          "key": "min_stock",
+          "header": "Stock mínimo",
+          "type": "num",
+          "edit": true
+        },
+        {
+          "key": "supplier",
+          "header": "Proveedor",
+          "type": "text",
+          "edit": true
+        },
+        {
+          "key": "is_active",
+          "header": "Activo",
+          "type": "bool",
+          "edit": true
+        },
+        {
+          "key": "stock",
+          "header": "Stock actual",
+          "type": "num"
+        },
+        {
+          "key": "last_purchase_at",
+          "header": "Última compra",
+          "type": "date"
+        },
+        {
+          "key": "cost_status",
+          "header": "Estado costo",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "name": "Recetas",
+      "group": "A",
+      "table": "recipes",
+      "allow_insert": true,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "name",
+          "header": "Receta",
+          "type": "text",
+          "edit": true,
+          "required": true
+        },
+        {
+          "key": "yield_qty",
+          "header": "Rendimiento",
+          "type": "num",
+          "edit": true,
+          "required": true,
+          "help": "Cuántas unidades/porciones salen de un lote."
+        },
+        {
+          "key": "yield_unit",
+          "header": "Unidad rendimiento",
+          "type": "text",
+          "edit": true
+        },
+        {
+          "key": "labor_minutes",
+          "header": "Minutos de trabajo por lote",
+          "type": "num",
+          "edit": true
+        },
+        {
+          "key": "other_cost",
+          "header": "Otros costos por lote ($)",
+          "type": "money",
+          "edit": true,
+          "help": "Gas, luz del horno u otros costos directos del lote."
+        },
+        {
+          "key": "notes",
+          "header": "Notas",
+          "type": "text",
+          "edit": true
+        },
+        {
+          "key": "is_active",
+          "header": "Activo",
+          "type": "bool",
+          "edit": true
+        },
+        {
+          "key": "ingredients_cost",
+          "header": "Costo ingredientes lote",
+          "type": "money"
+        },
+        {
+          "key": "batch_cost",
+          "header": "Costo total lote",
+          "type": "money"
+        },
+        {
+          "key": "unit_cost",
+          "header": "Costo por unidad",
+          "type": "money"
+        },
+        {
+          "key": "cost_status",
+          "header": "Estado costeo",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "name": "Receta_Detalle",
+      "group": "A",
+      "table": "recipe_ingredients",
+      "allow_insert": true,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "recipe_id",
+          "header": "ID Receta",
+          "type": "ref",
+          "ref": "Recetas",
+          "edit": true,
+          "required": true
+        },
+        {
+          "key": "recipe_name",
+          "header": "Receta",
+          "type": "text"
+        },
+        {
+          "key": "ingredient_id",
+          "header": "ID Ingrediente",
+          "type": "ref",
+          "ref": "Ingredientes",
+          "edit": true,
+          "required": true
+        },
+        {
+          "key": "ingredient_name",
+          "header": "Ingrediente",
+          "type": "text"
+        },
+        {
+          "key": "quantity",
+          "header": "Cantidad",
+          "type": "num",
+          "edit": true,
+          "required": true
+        },
+        {
+          "key": "unit",
+          "header": "Unidad",
+          "type": "enum",
+          "options": [
+            "g",
+            "kg",
+            "ml",
+            "l",
+            "unidad"
+          ],
+          "edit": true,
+          "required": true
+        },
+        {
+          "key": "line_cost",
+          "header": "Costo línea",
+          "type": "money"
+        }
+      ]
+    },
+    {
+      "name": "Productos",
+      "group": "A",
+      "table": "products",
+      "allow_insert": true,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "name",
+          "header": "Producto",
+          "type": "text",
+          "edit": true,
+          "required": true
+        },
+        {
+          "key": "category",
+          "header": "Categoría",
+          "type": "text",
+          "edit": true
+        },
+        {
+          "key": "sale_price",
+          "header": "Precio venta",
+          "type": "money",
+          "edit": true
+        },
+        {
+          "key": "recipe_id",
+          "header": "ID Receta",
+          "type": "ref",
+          "ref": "Recetas",
+          "edit": true
+        },
+        {
+          "key": "additional_cost",
+          "header": "Costo adicional ($/u)",
+          "type": "money",
+          "edit": true
+        },
+        {
+          "key": "packaging_cost",
+          "header": "Costo empaque ($/u)",
+          "type": "money",
+          "edit": true
+        },
+        {
+          "key": "min_stock",
+          "header": "Stock mínimo",
+          "type": "num",
+          "edit": true
+        },
+        {
+          "key": "is_active",
+          "header": "Activo",
+          "type": "bool",
+          "edit": true
+        },
+        {
+          "key": "recipe_name",
+          "header": "Receta",
+          "type": "text"
+        },
+        {
+          "key": "stock",
+          "header": "Stock",
+          "type": "num"
+        },
+        {
+          "key": "unit_cost",
+          "header": "Costo unitario",
+          "type": "money"
+        },
+        {
+          "key": "profit",
+          "header": "Ganancia por unidad",
+          "type": "money"
+        },
+        {
+          "key": "margin",
+          "header": "Margen",
+          "type": "pct",
+          "help": "Ganancia / precio."
+        },
+        {
+          "key": "markup",
+          "header": "Markup",
+          "type": "pct",
+          "help": "Ganancia / costo."
+        },
+        {
+          "key": "suggested_price",
+          "header": "Precio sugerido",
+          "type": "money"
+        },
+        {
+          "key": "cost_status",
+          "header": "Estado costeo",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "name": "Clientes",
+      "group": "A",
+      "table": "customers",
+      "allow_insert": true,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "name",
+          "header": "Cliente",
+          "type": "text",
+          "edit": true,
+          "required": true
+        },
+        {
+          "key": "phone",
+          "header": "Teléfono",
+          "type": "text",
+          "edit": true
+        },
+        {
+          "key": "email",
+          "header": "Correo",
+          "type": "text",
+          "edit": true
+        },
+        {
+          "key": "address",
+          "header": "Dirección",
+          "type": "text",
+          "edit": true
+        },
+        {
+          "key": "notes",
+          "header": "Notas",
+          "type": "text",
+          "edit": true
+        },
+        {
+          "key": "balance",
+          "header": "Saldo por cobrar",
+          "type": "money"
+        },
+        {
+          "key": "created_at",
+          "header": "Creado",
+          "type": "date"
+        }
+      ]
+    },
+    {
+      "name": "Metas",
+      "group": "A",
+      "table": "goals",
+      "allow_insert": true,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "month",
+          "header": "Mes (AAAA-MM)",
+          "type": "month",
+          "edit": true,
+          "required": true
+        },
+        {
+          "key": "sales_goal",
+          "header": "Meta ventas",
+          "type": "money",
+          "edit": true
+        },
+        {
+          "key": "profit_goal",
+          "header": "Meta ganancia",
+          "type": "money",
+          "edit": true
+        },
+        {
+          "key": "orders_goal",
+          "header": "Meta pedidos",
+          "type": "int",
+          "edit": true
+        },
+        {
+          "key": "notes",
+          "header": "Notas",
+          "type": "text",
+          "edit": true
+        }
+      ]
+    },
+    {
+      "name": "Pedidos",
+      "group": "B",
+      "table": "orders",
+      "allow_insert": false,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "code",
+          "header": "N°",
+          "type": "text"
+        },
+        {
+          "key": "customer_name",
+          "header": "Cliente",
+          "type": "text"
+        },
+        {
+          "key": "order_date",
+          "header": "Fecha entrega",
+          "type": "date",
+          "edit": true,
+          "required": true
+        },
+        {
+          "key": "order_time",
+          "header": "Hora",
+          "type": "time",
+          "edit": true
+        },
+        {
+          "key": "status",
+          "header": "Estado",
+          "type": "text"
+        },
+        {
+          "key": "total",
+          "header": "Total",
+          "type": "money"
+        },
+        {
+          "key": "deposit",
+          "header": "Abonado",
+          "type": "money"
+        },
+        {
+          "key": "balance",
+          "header": "Saldo",
+          "type": "money"
+        },
+        {
+          "key": "channel_name",
+          "header": "Canal",
+          "type": "text"
+        },
+        {
+          "key": "notes",
+          "header": "Notas",
+          "type": "text",
+          "edit": true
+        },
+        {
+          "key": "sale_id",
+          "header": "ID Venta",
+          "type": "text"
+        },
+        {
+          "key": "created_at",
+          "header": "Creado",
+          "type": "datetime"
+        }
+      ]
+    },
+    {
+      "name": "Pedido_Detalle",
+      "group": "B",
+      "table": "order_items",
+      "allow_insert": false,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "order_id",
+          "header": "ID Pedido",
+          "type": "text"
+        },
+        {
+          "key": "order_code",
+          "header": "N° Pedido",
+          "type": "text"
+        },
+        {
+          "key": "name_snapshot",
+          "header": "Producto",
+          "type": "text"
+        },
+        {
+          "key": "quantity",
+          "header": "Cantidad",
+          "type": "num"
+        },
+        {
+          "key": "unit_price",
+          "header": "Precio unitario",
+          "type": "money"
+        },
+        {
+          "key": "line_total",
+          "header": "Total línea",
+          "type": "money"
+        },
+        {
+          "key": "details",
+          "header": "Detalles",
+          "type": "text",
+          "edit": true
+        }
+      ]
+    },
+    {
+      "name": "Ventas",
+      "group": "B",
+      "table": "sales",
+      "allow_insert": false,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "sale_date",
+          "header": "Fecha",
+          "type": "date"
+        },
+        {
+          "key": "customer_name",
+          "header": "Cliente",
+          "type": "text"
+        },
+        {
+          "key": "total",
+          "header": "Total venta",
+          "type": "money"
+        },
+        {
+          "key": "paid_amount",
+          "header": "Cobrado",
+          "type": "money"
+        },
+        {
+          "key": "balance",
+          "header": "Saldo",
+          "type": "money"
+        },
+        {
+          "key": "status",
+          "header": "Estado pago",
+          "type": "text"
+        },
+        {
+          "key": "cost",
+          "header": "Costo de lo vendido",
+          "type": "money"
+        },
+        {
+          "key": "order_code",
+          "header": "Pedido",
+          "type": "text"
+        },
+        {
+          "key": "channel_name",
+          "header": "Canal",
+          "type": "text"
+        },
+        {
+          "key": "voided",
+          "header": "Anulada",
+          "type": "bool"
+        },
+        {
+          "key": "void_reason",
+          "header": "Motivo anulación",
+          "type": "text"
+        },
+        {
+          "key": "notes",
+          "header": "Notas",
+          "type": "text",
+          "edit": true
+        }
+      ]
+    },
+    {
+      "name": "Venta_Detalle",
+      "group": "B",
+      "table": "sale_items",
+      "allow_insert": false,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "sale_id",
+          "header": "ID Venta",
+          "type": "text"
+        },
+        {
+          "key": "sale_date",
+          "header": "Fecha",
+          "type": "date"
+        },
+        {
+          "key": "product_id",
+          "header": "ID Producto",
+          "type": "text"
+        },
+        {
+          "key": "name_snapshot",
+          "header": "Producto",
+          "type": "text"
+        },
+        {
+          "key": "quantity",
+          "header": "Cantidad",
+          "type": "num"
+        },
+        {
+          "key": "unit_price",
+          "header": "Precio unitario",
+          "type": "money"
+        },
+        {
+          "key": "line_total",
+          "header": "Total línea",
+          "type": "money"
+        },
+        {
+          "key": "unit_cost",
+          "header": "Costo unitario (histórico)",
+          "type": "money"
+        },
+        {
+          "key": "line_cost",
+          "header": "Costo línea",
+          "type": "money"
+        },
+        {
+          "key": "voided",
+          "header": "Anulada",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "Cobros",
+      "group": "B",
+      "table": "payments",
+      "allow_insert": false,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "paid_at",
+          "header": "Fecha",
+          "type": "date"
+        },
+        {
+          "key": "kind",
+          "header": "Tipo",
+          "type": "text",
+          "help": "cobro, abono, anticipo (de pedido) o reembolso (negativo)."
+        },
+        {
+          "key": "customer_name",
+          "header": "Cliente",
+          "type": "text"
+        },
+        {
+          "key": "amount",
+          "header": "Monto",
+          "type": "money"
+        },
+        {
+          "key": "method",
+          "header": "Medio",
+          "type": "text"
+        },
+        {
+          "key": "sale_id",
+          "header": "ID Venta",
+          "type": "text"
+        },
+        {
+          "key": "order_id",
+          "header": "ID Pedido",
+          "type": "text"
+        },
+        {
+          "key": "voided",
+          "header": "Anulado",
+          "type": "bool"
+        },
+        {
+          "key": "note",
+          "header": "Nota",
+          "type": "text",
+          "edit": true
+        }
+      ]
+    },
+    {
+      "name": "Gastos",
+      "group": "B",
+      "table": "expenses",
+      "allow_insert": false,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "expense_date",
+          "header": "Fecha",
+          "type": "date"
+        },
+        {
+          "key": "category",
+          "header": "Categoría",
+          "type": "text",
+          "edit": true
+        },
+        {
+          "key": "description",
+          "header": "Descripción",
+          "type": "text",
+          "edit": true,
+          "required": true
+        },
+        {
+          "key": "amount",
+          "header": "Monto",
+          "type": "money"
+        },
+        {
+          "key": "method",
+          "header": "Medio",
+          "type": "text"
+        },
+        {
+          "key": "voided",
+          "header": "Anulado",
+          "type": "bool"
+        },
+        {
+          "key": "void_reason",
+          "header": "Motivo anulación",
+          "type": "text"
+        },
+        {
+          "key": "notes",
+          "header": "Notas",
+          "type": "text",
+          "edit": true
+        }
+      ]
+    },
+    {
+      "name": "Compras",
+      "group": "B",
+      "table": "purchases",
+      "allow_insert": false,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "purchase_date",
+          "header": "Fecha",
+          "type": "date"
+        },
+        {
+          "key": "supplier_name",
+          "header": "Proveedor",
+          "type": "text"
+        },
+        {
+          "key": "total",
+          "header": "Total",
+          "type": "money"
+        },
+        {
+          "key": "paid_amount",
+          "header": "Pagado",
+          "type": "money"
+        },
+        {
+          "key": "balance",
+          "header": "Saldo",
+          "type": "money"
+        },
+        {
+          "key": "status",
+          "header": "Estado",
+          "type": "text"
+        },
+        {
+          "key": "voided",
+          "header": "Anulada",
+          "type": "bool"
+        },
+        {
+          "key": "notes",
+          "header": "Notas",
+          "type": "text",
+          "edit": true
+        }
+      ]
+    },
+    {
+      "name": "Compra_Detalle",
+      "group": "B",
+      "table": "purchase_items",
+      "allow_insert": false,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "purchase_id",
+          "header": "ID Compra",
+          "type": "text"
+        },
+        {
+          "key": "purchase_date",
+          "header": "Fecha",
+          "type": "date"
+        },
+        {
+          "key": "ingredient_name",
+          "header": "Ingrediente",
+          "type": "text"
+        },
+        {
+          "key": "quantity",
+          "header": "Cantidad",
+          "type": "num"
+        },
+        {
+          "key": "unit",
+          "header": "Unidad",
+          "type": "text"
+        },
+        {
+          "key": "line_total",
+          "header": "Total línea",
+          "type": "money"
+        },
+        {
+          "key": "unit_cost_base",
+          "header": "Costo por unidad base",
+          "type": "num"
+        }
+      ]
+    },
+    {
+      "name": "Pagos_Proveedor",
+      "group": "B",
+      "table": "supplier_payments",
+      "allow_insert": false,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "paid_at",
+          "header": "Fecha",
+          "type": "date"
+        },
+        {
+          "key": "supplier_name",
+          "header": "Proveedor",
+          "type": "text"
+        },
+        {
+          "key": "purchase_id",
+          "header": "ID Compra",
+          "type": "text"
+        },
+        {
+          "key": "amount",
+          "header": "Monto",
+          "type": "money"
+        },
+        {
+          "key": "method",
+          "header": "Medio",
+          "type": "text"
+        },
+        {
+          "key": "voided",
+          "header": "Anulado",
+          "type": "bool"
+        },
+        {
+          "key": "notes",
+          "header": "Notas",
+          "type": "text",
+          "edit": true
+        }
+      ]
+    },
+    {
+      "name": "Produccion",
+      "group": "B",
+      "table": "production",
+      "allow_insert": false,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "produced_at",
+          "header": "Fecha",
+          "type": "date"
+        },
+        {
+          "key": "recipe_name",
+          "header": "Receta",
+          "type": "text"
+        },
+        {
+          "key": "product_name",
+          "header": "Producto",
+          "type": "text"
+        },
+        {
+          "key": "batches",
+          "header": "Lotes",
+          "type": "num"
+        },
+        {
+          "key": "units",
+          "header": "Unidades",
+          "type": "num"
+        },
+        {
+          "key": "unit_cost",
+          "header": "Costo unitario (histórico)",
+          "type": "money"
+        },
+        {
+          "key": "voided",
+          "header": "Anulada",
+          "type": "bool"
+        },
+        {
+          "key": "notes",
+          "header": "Notas",
+          "type": "text",
+          "edit": true
+        }
+      ]
+    },
+    {
+      "name": "Inventario_Mov",
+      "group": "B",
+      "table": "inventory_movements",
+      "allow_insert": false,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "created_at",
+          "header": "Fecha",
+          "type": "datetime"
+        },
+        {
+          "key": "item_name",
+          "header": "Ítem",
+          "type": "text"
+        },
+        {
+          "key": "item_kind",
+          "header": "Tipo ítem",
+          "type": "text"
+        },
+        {
+          "key": "type",
+          "header": "Movimiento",
+          "type": "text"
+        },
+        {
+          "key": "quantity",
+          "header": "Cantidad",
+          "type": "num"
+        },
+        {
+          "key": "unit",
+          "header": "Unidad",
+          "type": "text"
+        },
+        {
+          "key": "reason",
+          "header": "Motivo",
+          "type": "text"
+        },
+        {
+          "key": "source_id",
+          "header": "ID origen",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "name": "Aportes_Retiros",
+      "group": "B",
+      "table": "owner_movements",
+      "allow_insert": false,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "movement_date",
+          "header": "Fecha",
+          "type": "date"
+        },
+        {
+          "key": "kind",
+          "header": "Tipo",
+          "type": "text"
+        },
+        {
+          "key": "amount",
+          "header": "Monto",
+          "type": "money"
+        },
+        {
+          "key": "method",
+          "header": "Medio",
+          "type": "text"
+        },
+        {
+          "key": "voided",
+          "header": "Anulado",
+          "type": "bool"
+        },
+        {
+          "key": "notes",
+          "header": "Notas",
+          "type": "text",
+          "edit": true
+        }
+      ]
+    },
+    {
+      "name": "Conflictos",
+      "group": "C",
+      "table": "sync_conflicts",
+      "allow_insert": false,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "created_at",
+          "header": "Detectado",
+          "type": "datetime"
+        },
+        {
+          "key": "table_label",
+          "header": "Hoja",
+          "type": "text"
+        },
+        {
+          "key": "record_id",
+          "header": "ID registro",
+          "type": "text"
+        },
+        {
+          "key": "summary",
+          "header": "Diferencias (Sheets → App)",
+          "type": "text",
+          "width": 70
+        },
+        {
+          "key": "status",
+          "header": "Estado",
+          "type": "text"
+        },
+        {
+          "key": "resolution",
+          "header": "Resuelto con",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "name": "Sync_Bitacora",
+      "group": "C",
+      "table": "sync_log",
+      "allow_insert": false,
+      "push_limit": 500,
+      "columns": [
+        {
+          "key": "id",
+          "header": "ID",
+          "type": "id"
+        },
+        {
+          "key": "created_at",
+          "header": "Fecha",
+          "type": "datetime"
+        },
+        {
+          "key": "direction",
+          "header": "Dirección",
+          "type": "text"
+        },
+        {
+          "key": "table_name",
+          "header": "Tabla",
+          "type": "text"
+        },
+        {
+          "key": "record_id",
+          "header": "Registro",
+          "type": "text"
+        },
+        {
+          "key": "status",
+          "header": "Resultado",
+          "type": "text"
+        },
+        {
+          "key": "message",
+          "header": "Detalle",
+          "type": "text",
+          "width": 70
+        }
+      ]
+    }
+  ],
+  "analysis": [
+    {
+      "name": "Resumen_Mensual",
+      "help": "Últimos 12 meses calculados desde las hojas de operación. Ventas = lo vendido (aunque no esté cobrado). Cobrado = dinero recibido (incluye abonos y descuenta reembolsos). Compras de insumos van a inventario y NO son gasto; su costo entra al vender (Costo de lo vendido).",
+      "headers": [
+        "Mes",
+        "Ventas",
+        "Cobrado",
+        "Costo de lo vendido",
+        "Ganancia bruta",
+        "Gastos operativos",
+        "Resultado estimado",
+        "Compras de insumos",
+        "Pagos a proveedores",
+        "Aportes",
+        "Retiros",
+        "Pedidos",
+        "Meta ventas",
+        "% de la meta"
+      ],
+      "formats": [
+        "month",
+        "money",
+        "money",
+        "money",
+        "money",
+        "money",
+        "money",
+        "money",
+        "money",
+        "money",
+        "money",
+        "int",
+        "money",
+        "pct"
+      ],
+      "rows": 12,
+      "row_formulas": [
+        "=EDATE(DATE(YEAR(TODAY()),MONTH(TODAY()),1),ROW()-13)",
+        "=SUMIFS({Ventas.total},{Ventas.sale_date},\">=\"&A{r},{Ventas.sale_date},\"<\"&EDATE(A{r},1),{Ventas.voided},FALSE)",
+        "=SUMIFS({Cobros.amount},{Cobros.paid_at},\">=\"&A{r},{Cobros.paid_at},\"<\"&EDATE(A{r},1),{Cobros.voided},FALSE)",
+        "=SUMIFS({Ventas.cost},{Ventas.sale_date},\">=\"&A{r},{Ventas.sale_date},\"<\"&EDATE(A{r},1),{Ventas.voided},FALSE)",
+        "=B{r}-D{r}",
+        "=SUMIFS({Gastos.amount},{Gastos.expense_date},\">=\"&A{r},{Gastos.expense_date},\"<\"&EDATE(A{r},1),{Gastos.voided},FALSE)",
+        "=E{r}-F{r}",
+        "=SUMIFS({Compras.total},{Compras.purchase_date},\">=\"&A{r},{Compras.purchase_date},\"<\"&EDATE(A{r},1),{Compras.voided},FALSE)",
+        "=SUMIFS({Pagos_Proveedor.amount},{Pagos_Proveedor.paid_at},\">=\"&A{r},{Pagos_Proveedor.paid_at},\"<\"&EDATE(A{r},1),{Pagos_Proveedor.voided},FALSE)",
+        "=SUMIFS({Aportes_Retiros.amount},{Aportes_Retiros.movement_date},\">=\"&A{r},{Aportes_Retiros.movement_date},\"<\"&EDATE(A{r},1),{Aportes_Retiros.kind},\"aporte\",{Aportes_Retiros.voided},FALSE)",
+        "=SUMIFS({Aportes_Retiros.amount},{Aportes_Retiros.movement_date},\">=\"&A{r},{Aportes_Retiros.movement_date},\"<\"&EDATE(A{r},1),{Aportes_Retiros.kind},\"retiro\",{Aportes_Retiros.voided},FALSE)",
+        "=COUNTIFS({Pedidos.order_date},\">=\"&A{r},{Pedidos.order_date},\"<\"&EDATE(A{r},1),{Pedidos.status},\"<>cancelado\")",
+        "=SUMIFS({Metas.sales_goal},{Metas.month},YEAR(A{r})&\"-\"&TEXT(MONTH(A{r}),\"00\"))",
+        "=IF(M{r}>0,B{r}/M{r},\"\")"
+      ],
+      "total_row": [
+        "Total 12 meses",
+        "=SUM(B2:B13)",
+        "=SUM(C2:C13)",
+        "=SUM(D2:D13)",
+        "=SUM(E2:E13)",
+        "=SUM(F2:F13)",
+        "=SUM(G2:G13)",
+        "=SUM(H2:H13)",
+        "=SUM(I2:I13)",
+        "=SUM(J2:J13)",
+        "=SUM(K2:K13)",
+        "=SUM(L2:L13)",
+        "=SUM(M2:M13)",
+        "=IF(M14>0,B14/M14,\"\")"
+      ]
+    },
+    {
+      "name": "Rentabilidad",
+      "help": "Por producto, con el costo histórico guardado en cada venta (subir un ingrediente no cambia el pasado). Las ventas anuladas no cuentan.",
+      "headers": [
+        "Producto",
+        "Unidades vendidas",
+        "Ingresos",
+        "Costo de lo vendido",
+        "Ganancia",
+        "Margen real",
+        "Precio actual",
+        "Costo unitario actual",
+        "Margen actual",
+        "Estado costeo"
+      ],
+      "formats": [
+        "text",
+        "num",
+        "money",
+        "money",
+        "money",
+        "pct",
+        "money",
+        "money",
+        "pct",
+        "text"
+      ],
+      "array_formulas": [
+        "=ARRAYFORMULA(IF({Productos.id}=\"\",\"\",{Productos.name}))",
+        "=ARRAYFORMULA(IF({Productos.id}=\"\",\"\",SUMIFS({Venta_Detalle.quantity},{Venta_Detalle.product_id},{Productos.id},{Venta_Detalle.voided},FALSE)))",
+        "=ARRAYFORMULA(IF({Productos.id}=\"\",\"\",SUMIFS({Venta_Detalle.line_total},{Venta_Detalle.product_id},{Productos.id},{Venta_Detalle.voided},FALSE)))",
+        "=ARRAYFORMULA(IF({Productos.id}=\"\",\"\",SUMIFS({Venta_Detalle.line_cost},{Venta_Detalle.product_id},{Productos.id},{Venta_Detalle.voided},FALSE)))",
+        "=ARRAYFORMULA(IF({Productos.id}=\"\",\"\",C2:C-D2:D))",
+        "=ARRAYFORMULA(IF({Productos.id}=\"\",\"\",IF(C2:C=0,\"\",E2:E/C2:C)))",
+        "=ARRAYFORMULA(IF({Productos.id}=\"\",\"\",{Productos.sale_price}))",
+        "=ARRAYFORMULA(IF({Productos.id}=\"\",\"\",{Productos.unit_cost}))",
+        "=ARRAYFORMULA(IF({Productos.id}=\"\",\"\",{Productos.margin}))",
+        "=ARRAYFORMULA(IF({Productos.id}=\"\",\"\",{Productos.cost_status}))"
+      ]
+    },
+    {
+      "name": "Pedidos_Proximos",
+      "help": "Pedidos que no están entregados ni cancelados, ordenados por fecha de entrega.",
+      "headers": [
+        "N°",
+        "Cliente",
+        "Fecha entrega",
+        "Hora",
+        "Estado",
+        "Total",
+        "Abonado",
+        "Saldo"
+      ],
+      "formats": [
+        "text",
+        "text",
+        "date",
+        "time",
+        "text",
+        "money",
+        "money",
+        "money"
+      ],
+      "array_formulas": [
+        "=IFERROR(SORT(FILTER({Pedidos.code:balance},{Pedidos.code}<>\"\",{Pedidos.status}<>\"entregado\",{Pedidos.status}<>\"cancelado\"),3,TRUE),\"Sin pedidos pendientes\")"
+      ]
+    },
+    {
+      "name": "Por_Cobrar",
+      "help": "Ventas con saldo pendiente (cuentas por cobrar). Total en la celda I2.",
+      "headers": [
+        "Fecha",
+        "Cliente",
+        "Total venta",
+        "Cobrado",
+        "Saldo",
+        "Estado pago",
+        "",
+        "",
+        "Total por cobrar"
+      ],
+      "formats": [
+        "date",
+        "text",
+        "money",
+        "money",
+        "money",
+        "text",
+        "text",
+        "text",
+        "money"
+      ],
+      "array_formulas": [
+        "=IFERROR(SORT(FILTER({Ventas.sale_date:status},{Ventas.balance}>0,{Ventas.voided}=FALSE),1,TRUE),\"Sin saldos pendientes\")",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "=SUMIFS({Ventas.balance},{Ventas.voided},FALSE)"
+      ]
+    },
+    {
+      "name": "Por_Pagar",
+      "help": "Compras a proveedores con saldo pendiente (cuentas por pagar).",
+      "headers": [
+        "Fecha",
+        "Proveedor",
+        "Total",
+        "Pagado",
+        "Saldo",
+        "Estado",
+        "",
+        "",
+        "Total por pagar"
+      ],
+      "formats": [
+        "date",
+        "text",
+        "money",
+        "money",
+        "money",
+        "text",
+        "text",
+        "text",
+        "money"
+      ],
+      "array_formulas": [
+        "=IFERROR(SORT(FILTER({Compras.purchase_date:status},{Compras.balance}>0,{Compras.voided}=FALSE),1,TRUE),\"Sin deudas con proveedores\")",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "=SUMIFS({Compras.balance},{Compras.voided},FALSE)"
+      ]
+    },
+    {
+      "name": "Alertas",
+      "help": "Ingredientes activos bajo su stock mínimo y productos con costeo pendiente o margen bajo.",
+      "headers": [
+        "Ingrediente",
+        "Stock actual",
+        "Stock mínimo",
+        "Unidad",
+        "",
+        "Producto",
+        "Estado costeo"
+      ],
+      "formats": [
+        "text",
+        "num",
+        "num",
+        "text",
+        "text",
+        "text",
+        "text"
+      ],
+      "array_formulas": [
+        "=IFERROR(FILTER({Ingredientes.name},{Ingredientes.is_active}=TRUE,{Ingredientes.stock}<{Ingredientes.min_stock}),\"Sin alertas de stock\")",
+        "=IFERROR(FILTER({Ingredientes.stock},{Ingredientes.is_active}=TRUE,{Ingredientes.stock}<{Ingredientes.min_stock}),\"\")",
+        "=IFERROR(FILTER({Ingredientes.min_stock},{Ingredientes.is_active}=TRUE,{Ingredientes.stock}<{Ingredientes.min_stock}),\"\")",
+        "=IFERROR(FILTER({Ingredientes.unit},{Ingredientes.is_active}=TRUE,{Ingredientes.stock}<{Ingredientes.min_stock}),\"\")",
+        "",
+        "=IFERROR(FILTER({Productos.name},{Productos.name}<>\"\",{Productos.is_active}=TRUE,{Productos.cost_status}<>\"OK\"),\"Todo costeado\")",
+        "=IFERROR(FILTER({Productos.cost_status},{Productos.name}<>\"\",{Productos.is_active}=TRUE,{Productos.cost_status}<>\"OK\"),\"\")"
+      ]
+    }
+  ]
+}

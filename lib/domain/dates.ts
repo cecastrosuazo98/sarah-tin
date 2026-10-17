@@ -1,4 +1,32 @@
-/** Utilidades de fechas para filtros y agregaciones. */
+/** Utilidades de fechas para filtros y agregaciones (hora local del dispositivo). */
+
+/**
+ * Convierte a Date. Una fecha sola "AAAA-MM-DD" se interpreta como día local
+ * (new Date("2026-10-17") sería medianoche UTC = 16-10 a las 21:00 en Chile).
+ */
+export function toDate(v: Date | string): Date {
+  if (v instanceof Date) return v;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(v);
+}
+
+/** Fecha local de hoy como AAAA-MM-DD. */
+export function localToday(d = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** Días calendario desde hoy hasta la fecha (0 = hoy, negativo = atrasado). */
+export function daysUntil(date: string | Date, now = new Date()): number {
+  return Math.round((startOfDay(toDate(date)).getTime() - startOfDay(now).getTime()) / 86_400_000);
+}
+
+/** DD-MM-AAAA */
+export function formatDMY(date: string | Date): string {
+  const d = toDate(date);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}`;
+}
 
 export function startOfDay(d = new Date()): Date {
   const x = new Date(d);
@@ -26,8 +54,8 @@ export function addDays(d: Date, n: number): Date {
 }
 
 export function isSameDay(a: Date | string, b: Date | string): boolean {
-  const da = new Date(a);
-  const db = new Date(b);
+  const da = toDate(a);
+  const db = toDate(b);
   return (
     da.getFullYear() === db.getFullYear() &&
     da.getMonth() === db.getMonth() &&
@@ -36,7 +64,7 @@ export function isSameDay(a: Date | string, b: Date | string): boolean {
 }
 
 export function inRange(date: string | Date, from: Date, to: Date): boolean {
-  const t = new Date(date).getTime();
+  const t = toDate(date).getTime();
   return t >= from.getTime() && t <= to.getTime();
 }
 

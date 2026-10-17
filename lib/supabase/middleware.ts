@@ -39,9 +39,11 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/auth");
+  // Las rutas /api validan por su cuenta (sesión o secreto del cron) y responden JSON.
+  const isApi = pathname.startsWith("/api/");
 
   // Sin sesión y en ruta privada -> a login
-  if (!user && !isAuthRoute) {
+  if (!user && !isAuthRoute && !isApi) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

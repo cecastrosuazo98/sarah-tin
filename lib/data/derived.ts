@@ -35,20 +35,26 @@ export function useProductsEconomics(): {
   const result = useMemo(() => {
     return products.map((p) => {
       let recipeCostPerUnit = 0;
+      let pending: string[] = [];
       if (p.recipe_id) {
         const recipe = recipes.find((r) => r.id === p.recipe_id);
         if (recipe) {
           const lines = recipeIngredients.filter(
             (ri) => ri.recipe_id === recipe.id
           );
-          recipeCostPerUnit = computeRecipeCost(recipe, lines, ingredients).perYield;
+          const rc = computeRecipeCost(recipe, lines, ingredients, settings.labor_rate);
+          recipeCostPerUnit = rc.perYield;
+          pending = rc.pending;
+        } else {
+          pending = ["receta no encontrada"];
         }
       }
       const econ = computeProductEconomics(
         p,
         recipeCostPerUnit,
         settings.target_margin,
-        settings.rounding
+        settings.rounding,
+        pending
       );
       return { ...p, econ };
     });
@@ -67,11 +73,12 @@ export function useRecipeCost(recipeId: string | null): {
     TABLES.recipe_ingredients
   );
   const { data: ingredients } = useTable<Ingredient>(TABLES.ingredients);
+  const { settings } = useSettings();
 
   return useMemo(() => {
     const recipe = recipes.find((r) => r.id === recipeId) ?? null;
     if (!recipe) return { recipe: null, cost: null };
     const lines = recipeIngredients.filter((ri) => ri.recipe_id === recipe.id);
-    return { recipe, cost: computeRecipeCost(recipe, lines, ingredients) };
-  }, [recipeId, recipes, recipeIngredients, ingredients]);
+    return { recipe, cost: computeRecipeCost(recipe, lines, ingredients, settings.labor_rate) };
+  }, [recipeId, recipes, recipeIngredients, ingredients, settings.labor_rate]);
 }

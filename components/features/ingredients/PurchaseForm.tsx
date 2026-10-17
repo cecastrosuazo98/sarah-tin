@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { Field, Select } from "@/components/ui/field";
+import { Field, Input, Select } from "@/components/ui/field";
 import { MoneyInput, NumberInput } from "@/components/ui/money-input";
 import { useToast } from "@/components/ui/toast";
-import { registerPurchase } from "@/lib/data/repo";
+import { registerPurchase, newOperationKey } from "@/lib/data/repo";
 import { getErrorMessage } from "@/lib/data/error";
 import type { Ingredient, MeasureUnit } from "@/lib/data/types";
 import { compatibleUnits } from "@/lib/domain/units";
@@ -25,7 +25,9 @@ export function PurchaseForm({
   const [qty, setQty] = useState(0);
   const [unit, setUnit] = useState<MeasureUnit>(units[units.length - 1]);
   const [cost, setCost] = useState(0);
-  const [asExpense, setAsExpense] = useState(true);
+  const [supplier, setSupplier] = useState("");
+  const [paidNow, setPaidNow] = useState(true);
+  const [opKey, setOpKey] = useState(newOperationKey);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -34,11 +36,24 @@ export function PurchaseForm({
       setUnit(u[u.length - 1]);
       setQty(0);
       setCost(0);
-      setAsExpense(true);
+      setSupplier(ingredient.supplier ?? "");
+      setPaidNow(true);
+      setOpKey(newOperationKey());
     }
   }, [open, ingredient]);
 
+  // Bloqueo inmediato contra doble toque (el estado "saving" llega un render tarde).
+  const guard = useRef(false);
   const save = async () => {
+    if (guard.current) return;
+    guard.current = true;
+    try {
+      await saveInner();
+    } finally {
+      guard.current = false;
+    }
+  };
+  const saveInner = async () => {
     if (!ingredient) return;
     if (qty <= 0 || cost <= 0) {
       toast("Ingresa la cantidad y el precio.", "error");
@@ -51,7 +66,9 @@ export function PurchaseForm({
         quantity: qty,
         unit,
         totalCost: cost,
-        registerAsExpense: asExpense,
+        supplier: supplier.trim() || undefined,
+        paidAmount: paidNow ? cost : 0,
+        key: opKey,
       });
       toast("Compra registrada 💕");
       onClose();
@@ -67,7 +84,7 @@ export function PurchaseForm({
       open={open}
       onClose={onClose}
       title={`Compra de ${ingredient?.name ?? ""}`}
-      description="Suma stock y recalcula el costo por unidad."
+      description="Suma stock y actualiza el costo. Las compras de insumos van a inventario: no se cuentan como gasto."
       footer={
         <>
           <Button variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
@@ -91,9 +108,12 @@ export function PurchaseForm({
         <Field label="Precio total pagado">
           <MoneyInput value={cost} onChange={setCost} />
         </Field>
+        <Field label="Proveedor" hint="Opcional.">
+          <Input value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="Ej: distribuidora" />
+        </Field>
         <label className="flex items-center gap-2 text-sm text-cocoa">
-          <input type="checkbox" checked={asExpense} onChange={(e) => setAsExpense(e.target.checked)} className="h-4 w-4 accent-sarah" />
-          Registrar también como gasto
+          <input type="checkbox" checked={paidNow} onChange={(e) => setPaidNow(e.target.checked)} className="h-4 w-4 accent-sarah" />
+          Pagada ahora (si no, queda como cuenta por pagar)
         </label>
       </div>
     </Modal>

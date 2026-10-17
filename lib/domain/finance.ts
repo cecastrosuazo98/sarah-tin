@@ -18,27 +18,30 @@ import {
   isSameDay,
 } from "./dates";
 
+/** Las ventas y gastos anulados no cuentan en ningún cálculo. */
+export const isActive = (r: { voided_at?: string | null }) => !r.voided_at;
+
 export function sumInRange(
   sales: Sale[],
   from: Date,
   to: Date
 ): number {
   return sales
-    .filter((s) => inRange(s.sale_date, from, to))
+    .filter((s) => isActive(s) && inRange(s.sale_date, from, to))
     .reduce((sum, s) => sum + s.total, 0);
 }
 
 /** Deuda pendiente total de un cliente (suma de saldos no pagados). */
 export function customerDebt(customerId: string, sales: Sale[]): number {
   return sales
-    .filter((s) => s.customer_id === customerId && s.status !== "pagado")
+    .filter((s) => isActive(s) && s.customer_id === customerId && s.status !== "pagado")
     .reduce((sum, s) => sum + Math.max(s.total - s.paid_amount, 0), 0);
 }
 
 /** Deuda pendiente total (todos los clientes). */
 export function totalReceivable(sales: Sale[]): number {
   return sales
-    .filter((s) => s.status !== "pagado")
+    .filter((s) => isActive(s) && s.status !== "pagado")
     .reduce((sum, s) => sum + Math.max(s.total - s.paid_amount, 0), 0);
 }
 
@@ -71,7 +74,7 @@ export function computeDashboard(params: {
   const salesMonth = sumInRange(sales, month.from, month.to);
 
   const expensesMonth = expenses
-    .filter((e) => inRange(e.expense_date, month.from, month.to))
+    .filter((e) => isActive(e) && inRange(e.expense_date, month.from, month.to))
     .reduce((s, e) => s + e.amount, 0);
 
   const prevFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -81,7 +84,7 @@ export function computeDashboard(params: {
     salesPrevMonth > 0 ? (salesMonth - salesPrevMonth) / salesPrevMonth : null;
 
   const todaySaleIds = new Set(
-    sales.filter((s) => isSameDay(s.sale_date, now)).map((s) => s.id)
+    sales.filter((s) => isActive(s) && isSameDay(s.sale_date, now)).map((s) => s.id)
   );
   const productsSoldToday = saleItems
     .filter((it) => todaySaleIds.has(it.sale_id))
@@ -113,7 +116,7 @@ export function salesByDay(sales: Sale[], days = 7): SalesPoint[] {
   for (let i = days - 1; i >= 0; i--) {
     const d = addDays(startOfDay(now), -i);
     const amount = sales
-      .filter((s) => isSameDay(s.sale_date, d))
+      .filter((s) => isActive(s) && isSameDay(s.sale_date, d))
       .reduce((sum, s) => sum + s.total, 0);
     points.push({ date: d.toISOString(), label: dayLabels[d.getDay()], amount });
   }

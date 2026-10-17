@@ -29,6 +29,9 @@ export type OrderStatus =
   | "entregado"
   | "cancelado";
 
+/** cobro = pago completo · abono = pago parcial · anticipo = abono a un pedido · reembolso = devolución */
+export type PaymentKind = "cobro" | "abono" | "anticipo" | "reembolso";
+
 export type MovementType = "ingreso" | "egreso";
 
 export interface BaseRow {
@@ -46,6 +49,7 @@ export interface Ingredient extends BaseRow {
   cost_per_unit: number; // $ por unidad base
   supplier: string | null;
   last_purchase_at: string | null;
+  is_active?: boolean;
 }
 
 export interface IngredientPurchase extends BaseRow {
@@ -61,6 +65,9 @@ export interface Recipe extends BaseRow {
   yield_qty: number;
   yield_unit: string;
   notes: string | null;
+  labor_minutes?: number; // minutos de trabajo por lote
+  other_cost?: number; // otros costos directos por lote
+  is_active?: boolean;
 }
 
 export interface RecipeIngredient extends BaseRow {
@@ -80,6 +87,8 @@ export interface Product extends BaseRow {
   additional_cost: number; // costos adicionales por unidad (envase, etc.)
   stock: number;
   is_active: boolean;
+  packaging_cost?: number; // empaque por unidad
+  min_stock?: number;
 }
 
 export interface Customer extends BaseRow {
@@ -98,6 +107,9 @@ export interface Sale extends BaseRow {
   method: PaymentMethod;
   status: PaymentStatus;
   notes: string | null;
+  order_id?: string | null;
+  voided_at?: string | null;
+  void_reason?: string | null;
 }
 
 export interface SaleItem extends BaseRow {
@@ -107,6 +119,7 @@ export interface SaleItem extends BaseRow {
   quantity: number;
   unit_price: number;
   line_total: number;
+  unit_cost?: number | null; // costo unitario histórico al momento de vender
 }
 
 export interface Payment extends BaseRow {
@@ -116,6 +129,9 @@ export interface Payment extends BaseRow {
   method: PaymentMethod;
   note: string | null;
   paid_at: string;
+  kind?: PaymentKind;
+  order_id?: string | null;
+  voided_at?: string | null;
 }
 
 export interface CashRegister extends BaseRow {
@@ -141,6 +157,10 @@ export interface Expense extends BaseRow {
   description: string;
   amount: number;
   expense_date: string;
+  method?: string;
+  notes?: string | null;
+  voided_at?: string | null;
+  void_reason?: string | null;
 }
 
 export interface Order extends BaseRow {
@@ -153,6 +173,8 @@ export interface Order extends BaseRow {
   total: number;
   deposit: number;
   notes: string | null;
+  sale_id?: string | null;
+  delivered_at?: string | null;
 }
 
 export interface OrderItem extends BaseRow {
@@ -175,6 +197,30 @@ export interface BusinessSettings extends BaseRow {
   address: string | null;
   product_categories: string[];
   expense_categories: string[];
+  /** Parámetros editables desde la matriz (v2): costo_mano_obra_hora, dias_alerta_pedido… */
+  params?: Record<string, unknown>;
+}
+
+/** Tablas de configuración v2 (se editan desde Google Sheets). */
+export interface CategoryRow extends BaseRow {
+  name: string;
+  kind: "producto" | "gasto" | "ingrediente";
+  is_active?: boolean;
+}
+
+export interface PaymentMethodRow extends BaseRow {
+  code: string;
+  label: string;
+  sort: number;
+  is_active: boolean;
+}
+
+export interface OrderStatusRow extends BaseRow {
+  code: string;
+  label: string;
+  sort: number;
+  is_active: boolean;
+  is_final: boolean;
 }
 
 /** Nombres de tabla/colección. Coinciden con Supabase. */
@@ -194,6 +240,11 @@ export const TABLES = {
   orders: "orders",
   order_items: "order_items",
   business_settings: "business_settings",
+  categories: "categories",
+  payment_methods: "payment_methods",
+  order_statuses: "order_statuses",
+  purchases: "purchases",
+  sync_runs: "sync_runs",
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];

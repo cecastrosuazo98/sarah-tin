@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Field, Select } from "@/components/ui/field";
 import { MoneyInput } from "@/components/ui/money-input";
 import { useToast } from "@/components/ui/toast";
-import { registerPayment } from "@/lib/data/repo";
+import { registerPayment, newOperationKey } from "@/lib/data/repo";
 import { getErrorMessage } from "@/lib/data/error";
 import type { Customer, PaymentMethod } from "@/lib/data/types";
 import { PAYMENT_METHODS } from "@/lib/constants";
@@ -27,15 +27,28 @@ export function PaymentForm({
   const [amount, setAmount] = useState(0);
   const [method, setMethod] = useState<PaymentMethod>("efectivo");
   const [saving, setSaving] = useState(false);
+  const [opKey, setOpKey] = useState(newOperationKey);
 
   useEffect(() => {
     if (open) {
       setAmount(debt);
       setMethod("efectivo");
+      setOpKey(newOperationKey());
     }
   }, [open, debt]);
 
+  // Bloqueo inmediato contra doble toque (el estado "saving" llega un render tarde).
+  const guard = useRef(false);
   const save = async () => {
+    if (guard.current) return;
+    guard.current = true;
+    try {
+      await saveInner();
+    } finally {
+      guard.current = false;
+    }
+  };
+  const saveInner = async () => {
     if (!customer) return;
     if (amount <= 0) {
       toast("Ingresa el monto del pago.", "error");
@@ -43,7 +56,13 @@ export function PaymentForm({
     }
     setSaving(true);
     try {
-      await registerPayment({ customerId: customer.id, amount, method });
+      await registerPayment({
+        customerId: customer.id,
+        amount,
+        method,
+        kind: amount >= debt ? "cobro" : "abono",
+        key: opKey,
+      });
       toast("Pago registrado 💕");
       onClose();
     } catch (e) {

@@ -15,7 +15,8 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { BOTTOM_NAV_ITEMS, MORE_NAV_ITEMS } from "@/lib/navigation";
+import { BOTTOM_NAV_ITEMS, moreNavFor } from "@/lib/navigation";
+import { useRole } from "@/lib/data/config";
 import { signOut } from "@/lib/actions/auth";
 
 const QUICK_ADD = [
@@ -29,6 +30,7 @@ const QUICK_ADD = [
 export function MobileNav() {
   const pathname = usePathname();
   const [sheet, setSheet] = useState<null | "add" | "more">(null);
+  const { role } = useRole();
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -110,7 +112,7 @@ export function MobileNav() {
               </div>
             ) : (
               <div className="space-y-1">
-                {MORE_NAV_ITEMS.map((item) => {
+                {moreNavFor(role).map((item) => {
                   const Icon = item.icon;
                   return (
                     <Link

@@ -15,9 +15,11 @@ import { remove } from "@/lib/data/client";
 import { TABLES } from "@/lib/data/types";
 import type { Recipe, RecipeIngredient, Ingredient } from "@/lib/data/types";
 import { computeRecipeCost } from "@/lib/domain/costing";
+import { useSettings } from "@/lib/data/settings";
 import { formatMoney, formatQuantity } from "@/lib/format";
 
 export default function RecetasPage() {
+  const { settings } = useSettings();
   const toast = useToast();
   const { data: recipes, loading } = useTable<Recipe>(TABLES.recipes);
   const { data: allLines } = useTable<RecipeIngredient>(TABLES.recipe_ingredients);
@@ -65,7 +67,7 @@ export default function RecetasPage() {
         <div className="grid gap-3 sm:grid-cols-2">
           {filtered.map((r) => {
             const lines = allLines.filter((l) => l.recipe_id === r.id);
-            const cost = computeRecipeCost(r, lines, ingredients);
+            const cost = computeRecipeCost(r, lines, ingredients, settings.labor_rate);
             return (
               <div key={r.id} className="rounded-2xl border border-peach/60 bg-white/80 p-4 shadow-card">
                 <div className="flex items-start justify-between gap-2">

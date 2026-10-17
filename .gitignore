@@ -30,3 +30,6 @@ next-env.d.ts
 
 # vercel
 .vercel
+
+# respaldos locales de la base (contienen datos reales)
+/respaldos/

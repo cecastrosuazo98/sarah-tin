@@ -37,6 +37,7 @@ export function ProductForm({
   const [category, setCategory] = useState(settings.product_categories[0] ?? "Otros");
   const [recipeId, setRecipeId] = useState("");
   const [additionalCost, setAdditionalCost] = useState(0);
+  const [packagingCost, setPackagingCost] = useState(0);
   const [salePrice, setSalePrice] = useState(0);
   const [stock, setStock] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -48,28 +49,30 @@ export function ProductForm({
     setCategory(editing?.category ?? settings.product_categories[0] ?? "Otros");
     setRecipeId(editing?.recipe_id ?? "");
     setAdditionalCost(editing?.additional_cost ?? 0);
+    setPackagingCost(editing?.packaging_cost ?? 0);
     setSalePrice(editing?.sale_price ?? 0);
     setStock(editing?.stock ?? 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editing]);
 
-  const recipeCostPerUnit = useMemo(() => {
-    if (!recipeId) return 0;
+  const recipeCost = useMemo(() => {
+    if (!recipeId) return { perYield: 0, pending: [] as string[] };
     const recipe = recipes.find((r) => r.id === recipeId);
-    if (!recipe) return 0;
+    if (!recipe) return { perYield: 0, pending: ["receta no encontrada"] };
     const lines = recipeIngredients.filter((l) => l.recipe_id === recipe.id);
-    return computeRecipeCost(recipe, lines, ingredients).perYield;
-  }, [recipeId, recipes, recipeIngredients, ingredients]);
+    return computeRecipeCost(recipe, lines, ingredients, settings.labor_rate);
+  }, [recipeId, recipes, recipeIngredients, ingredients, settings.labor_rate]);
 
   const econ = useMemo(
     () =>
       computeProductEconomics(
-        { sale_price: salePrice, additional_cost: additionalCost },
-        recipeCostPerUnit,
+        { sale_price: salePrice, additional_cost: additionalCost, packaging_cost: packagingCost, recipe_id: recipeId || null },
+        recipeCost.perYield,
         settings.target_margin,
-        settings.rounding
+        settings.rounding,
+        recipeCost.pending
       ),
-    [salePrice, additionalCost, recipeCostPerUnit, settings]
+    [salePrice, additionalCost, packagingCost, recipeId, recipeCost, settings]
   );
 
   const save = async () => {
@@ -85,6 +88,7 @@ export function ProductForm({
         category,
         recipe_id: recipeId || null,
         additional_cost: additionalCost,
+        packaging_cost: packagingCost,
         sale_price: salePrice,
         stock,
       };
@@ -148,13 +152,16 @@ export function ProductForm({
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Costos adicionales" hint="Envase, decoración, etc.">
+          <Field label="Empaque por unidad" hint="Caja, bolsa, etiqueta.">
+            <MoneyInput value={packagingCost} onChange={setPackagingCost} />
+          </Field>
+          <Field label="Otros costos por unidad" hint="Decoración, delivery incluido, etc.">
             <MoneyInput value={additionalCost} onChange={setAdditionalCost} />
           </Field>
-          <Field label="Precio de venta" required>
-            <MoneyInput value={salePrice} onChange={setSalePrice} />
-          </Field>
         </div>
+        <Field label="Precio de venta" required>
+          <MoneyInput value={salePrice} onChange={setSalePrice} />
+        </Field>
 
         <Field label="Descripción">
           <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Breve descripción…" />
@@ -178,6 +185,18 @@ export function ProductForm({
               </p>
             </div>
           </div>
+
+          {econ.pendingCosting && (
+            <p className="mt-3 flex items-center gap-1.5 rounded-xl bg-[#FBEDED] px-3 py-2 text-xs font-medium text-danger">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              Pendiente de costeo{recipeCost.pending.length ? `: ${recipeCost.pending.join(" · ")}` : ": agrega una receta o costos"}. El margen no es confiable.
+            </p>
+          )}
+          {econ.markup !== null && (
+            <p className="mt-2 text-center text-xs text-cocoa-light">
+              Margen = ganancia / precio · Markup = ganancia / costo = <span className="font-semibold">{formatPercent(econ.markup, 0)}</span>
+            </p>
+          )}
 
           {econ.belowTarget && (
             <p className="mt-3 flex items-center gap-1.5 rounded-xl bg-[#FBEDED] px-3 py-2 text-xs font-medium text-danger">

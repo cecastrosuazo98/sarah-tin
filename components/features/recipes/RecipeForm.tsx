@@ -6,7 +6,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { SearchSelect } from "@/components/ui/search-select";
-import { NumberInput } from "@/components/ui/money-input";
+import { MoneyInput, NumberInput } from "@/components/ui/money-input";
 import { useToast } from "@/components/ui/toast";
 import { useTable } from "@/lib/data/hooks";
 import { create, update, remove, createSilent } from "@/lib/data/client";
@@ -17,6 +17,7 @@ import type { Ingredient, Recipe, RecipeIngredient, MeasureUnit } from "@/lib/da
 import { compatibleUnits } from "@/lib/domain/units";
 import { computeRecipeCost } from "@/lib/domain/costing";
 import { formatMoney } from "@/lib/format";
+import { useSettings } from "@/lib/data/settings";
 
 type Line = { ingredient_id: string; quantity: number; unit: MeasureUnit };
 
@@ -37,6 +38,9 @@ export function RecipeForm({
   const [yieldQty, setYieldQty] = useState(1);
   const [yieldUnit, setYieldUnit] = useState("unidad");
   const [notes, setNotes] = useState("");
+  const [laborMinutes, setLaborMinutes] = useState(0);
+  const [otherCost, setOtherCost] = useState(0);
+  const { settings } = useSettings();
   const [lines, setLines] = useState<Line[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -46,6 +50,8 @@ export function RecipeForm({
     setYieldQty(editing?.yield_qty ?? 1);
     setYieldUnit(editing?.yield_unit ?? "unidad");
     setNotes(editing?.notes ?? "");
+    setLaborMinutes(editing?.labor_minutes ?? 0);
+    setOtherCost(editing?.other_cost ?? 0);
     if (editing) {
       setLines(
         allLines
@@ -71,13 +77,14 @@ export function RecipeForm({
   };
 
   const cost = useMemo(() => {
-    const fakeRecipe = { yield_qty: yieldQty } as Recipe;
+    const fakeRecipe = { yield_qty: yieldQty, labor_minutes: laborMinutes, other_cost: otherCost } as Recipe;
     return computeRecipeCost(
       fakeRecipe,
       lines.map((l, i) => ({ ...l, id: String(i), recipe_id: "x", owner_id: "x", created_at: "" })),
-      ingredients
+      ingredients,
+      settings.labor_rate
     );
-  }, [lines, yieldQty, ingredients]);
+  }, [lines, yieldQty, laborMinutes, otherCost, ingredients, settings.labor_rate]);
 
   const save = async () => {
     if (!name.trim()) {
@@ -91,6 +98,8 @@ export function RecipeForm({
         yield_qty: yieldQty || 1,
         yield_unit: yieldUnit,
         notes: notes.trim() || null,
+        labor_minutes: laborMinutes || 0,
+        other_cost: otherCost || 0,
       };
       let recipeId: string;
       if (editing) {
@@ -216,13 +225,30 @@ export function RecipeForm({
           </div>
         </div>
 
+        <div className="grid grid-cols-2 gap-3">
+          <Field
+            label="Minutos de trabajo por lote"
+            hint={settings.labor_rate > 0 ? `${formatMoney(settings.labor_rate)} por hora` : "El costo por hora se define en la matriz (Parametros)."}
+          >
+            <NumberInput value={laborMinutes} onChange={setLaborMinutes} min={0} />
+          </Field>
+          <Field label="Otros costos del lote" hint="Gas, luz del horno, etc.">
+            <MoneyInput value={otherCost} onChange={setOtherCost} />
+          </Field>
+        </div>
+
         <Field label="Notas">
           <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Instrucciones, tips…" />
         </Field>
 
+        {cost.pending.length > 0 && (
+          <p className="rounded-xl bg-[#FBEDED] px-3 py-2 text-sm text-danger">
+            Pendiente de costeo: {cost.pending.join(" · ")}
+          </p>
+        )}
         <div className="flex items-center justify-between rounded-2xl border border-gold/30 bg-[#FBF1DA]/50 p-4">
           <div>
-            <p className="text-sm text-cocoa-light">Costo total</p>
+            <p className="text-sm text-cocoa-light">Costo total del lote</p>
             <p className="font-display text-xl font-extrabold text-cocoa">{formatMoney(cost.total)}</p>
           </div>
           <div className="text-right">

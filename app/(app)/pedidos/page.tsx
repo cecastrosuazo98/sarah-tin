@@ -1,200 +1,161 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, CalendarDays, Clock, Trash2 } from "lucide-react";
+import { Plus, CalendarDays } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { SearchBar } from "@/components/shared/SearchBar";
 import { matchesSearch } from "@/lib/search";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Select } from "@/components/ui/field";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
-import { OrderForm } from "@/components/features/orders/OrderForm";
+import { OrderWizard } from "@/components/features/orders/OrderWizard";
+import { OrderCard, orderAlerts } from "@/components/features/orders/OrderCard";
+import { MoneyInWizard } from "@/components/features/payments/MoneyInWizard";
 import { useTable } from "@/lib/data/hooks";
 import { useAutoOpen } from "@/lib/hooks/useAutoOpen";
-import { updateOrderStatus } from "@/lib/data/repo";
-import { remove } from "@/lib/data/client";
+import { useOrderStatuses } from "@/lib/data/config";
+import { useSettings } from "@/lib/data/settings";
+import { setOrderStatus } from "@/lib/data/repo";
+import { getErrorMessage } from "@/lib/data/error";
 import { TABLES } from "@/lib/data/types";
-import type { Order, OrderItem, Customer, OrderStatus } from "@/lib/data/types";
-import { ORDER_STATUSES } from "@/lib/constants";
-import { formatMoney } from "@/lib/format";
+import type { Order, OrderItem, Customer } from "@/lib/data/types";
+import { daysUntil } from "@/lib/domain/dates";
+import { cn } from "@/lib/utils";
 
-const STATUS_TONE: Record<OrderStatus, "neutral" | "tin" | "gold" | "success" | "danger"> = {
-  pendiente: "neutral",
-  confirmado: "tin",
-  en_preparacion: "gold",
-  listo: "success",
-  entregado: "success",
-  cancelado: "danger",
-};
+type Tab = "pendientes" | "entregados" | "cancelados";
 
-function bucketOf(dateStr: string): string {
-  const today = new Date().toISOString().slice(0, 10);
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-  const weekEnd = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
-  if (dateStr < today) return "Anteriores";
-  if (dateStr === today) return "Hoy";
-  if (dateStr === tomorrow) return "Mañana";
-  if (dateStr <= weekEnd) return "Esta semana";
-  return "Próximos";
+function bucketOf(date: string): string {
+  const d = daysUntil(date);
+  if (d < 0) return "Atrasados";
+  if (d === 0) return "Hoy";
+  if (d === 1) return "Mañana";
+  if (d <= 7) return "Esta semana";
+  return "Más adelante";
 }
-
-const ORDER = ["Hoy", "Mañana", "Esta semana", "Próximos", "Anteriores"];
+const BUCKETS = ["Atrasados", "Hoy", "Mañana", "Esta semana", "Más adelante"];
 
 export default function PedidosPage() {
   const toast = useToast();
   const { data: orders, loading } = useTable<Order>(TABLES.orders);
   const { data: orderItems } = useTable<OrderItem>(TABLES.order_items);
   const { data: customers } = useTable<Customer>(TABLES.customers);
+  const statuses = useOrderStatuses();
+  const { settings } = useSettings();
   const [open, setOpen] = useState(false);
-  const [deleting, setDeleting] = useState<Order | null>(null);
+  const [paying, setPaying] = useState<Order | null>(null);
+  const [cancelling, setCancelling] = useState<Order | null>(null);
   const [query, setQuery] = useState("");
+  const [tab, setTab] = useState<Tab>("pendientes");
   useAutoOpen(() => setOpen(true));
 
-  const filteredOrders = useMemo(
+  const inTab = (o: Order) =>
+    tab === "pendientes" ? o.status !== "entregado" && o.status !== "cancelado"
+    : tab === "entregados" ? o.status === "entregado"
+    : o.status === "cancelado";
+
+  const filtered = useMemo(
     () =>
       orders.filter((o) => {
+        if (!inTab(o)) return false;
         const customer = customers.find((c) => c.id === o.customer_id)?.name ?? "";
-        const items = orderItems
-          .filter((it) => it.order_id === o.id)
-          .map((it) => it.name_snapshot)
-          .join(" ");
-        const statusLabel = ORDER_STATUSES.find((s) => s.value === o.status)?.label ?? "";
-        return matchesSearch(query, customer, o.code, items, o.notes, statusLabel);
+        const items = orderItems.filter((it) => it.order_id === o.id).map((it) => it.name_snapshot).join(" ");
+        return matchesSearch(query, customer, o.code, items, o.notes);
       }),
-    [orders, customers, orderItems, query]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [orders, customers, orderItems, query, tab]
   );
 
   const groups = useMemo(() => {
+    const sorted = [...filtered].sort((a, b) =>
+      tab === "pendientes"
+        ? a.order_date.localeCompare(b.order_date) || (a.order_time ?? "").localeCompare(b.order_time ?? "")
+        : b.order_date.localeCompare(a.order_date)
+    );
+    if (tab !== "pendientes") return new Map([["", sorted.slice(0, 50)]]);
     const map = new Map<string, Order[]>();
-    [...filteredOrders]
-      .sort((a, b) => a.order_date.localeCompare(b.order_date) || (a.order_time ?? "").localeCompare(b.order_time ?? ""))
-      .forEach((o) => {
-        const b = bucketOf(o.order_date);
-        map.set(b, [...(map.get(b) ?? []), o]);
-      });
+    sorted.forEach((o) => map.set(bucketOf(o.order_date), [...(map.get(bucketOf(o.order_date)) ?? []), o]));
     return map;
-  }, [filteredOrders]);
+  }, [filtered, tab]);
+
+  const pendingCount = orders.filter((o) => o.status !== "entregado" && o.status !== "cancelado").length;
+  const alertCount = orders.filter((o) => orderAlerts(o, settings.alert_days).some((a) => a.tone === "danger")).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Pedidos"
-        subtitle="Agenda tus entregas y sigue su estado."
-        action={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Nuevo</Button>}
+        subtitle={pendingCount ? `${pendingCount} por entregar${alertCount ? ` · ${alertCount} con alerta` : ""}` : "Agenda tus entregas y sigue su estado."}
+        action={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Nuevo pedido</Button>}
       />
 
-      {orders.length > 0 && (
-        <SearchBar value={query} onChange={setQuery} placeholder="Buscar pedido, cliente o estado…" />
-      )}
+      <div className="flex gap-1 rounded-2xl bg-peach-light/50 p-1">
+        {(["pendientes", "entregados", "cancelados"] as Tab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={cn("flex-1 rounded-xl py-2 text-sm font-semibold capitalize", tab === t ? "bg-white text-cocoa shadow-card" : "text-cocoa-light")}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {orders.length > 0 && <SearchBar value={query} onChange={setQuery} placeholder="Buscar por cliente, número o producto…" />}
 
       {!loading && orders.length === 0 ? (
         <EmptyState
           icon={CalendarDays}
           emoji="📅"
           title="Todavía no tienes pedidos"
-          description="Agenda tu primer pedido con fecha de entrega y estado."
+          description="Agenda tu primer pedido con fecha de entrega."
           action={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Nuevo pedido</Button>}
         />
-      ) : groups.size === 0 ? (
-        <EmptyState emoji="🔍" title="Sin resultados" description="No hay pedidos que coincidan con tu búsqueda." />
+      ) : filtered.length === 0 ? (
+        <EmptyState emoji={query ? "🔍" : "🎉"} title={query ? "Sin resultados" : "Nada por aquí"} description={query ? "No hay pedidos que coincidan." : tab === "pendientes" ? "No tienes pedidos pendientes." : "Sin pedidos en esta lista."} />
       ) : (
         <div className="space-y-6">
-          {ORDER.filter((b) => groups.has(b)).map((bucket) => (
-            <section key={bucket}>
-              <h2 className="mb-2 font-display text-lg font-bold text-cocoa">{bucket}</h2>
+          {(tab === "pendientes" ? BUCKETS : [""]).filter((b) => groups.has(b)).map((bucket) => (
+            <section key={bucket || "all"}>
+              {bucket && <h2 className={cn("mb-2 font-display text-lg font-bold", bucket === "Atrasados" ? "text-danger" : "text-cocoa")}>{bucket}</h2>}
               <div className="space-y-2">
-                {groups.get(bucket)!.map((o) => {
-                  const items = orderItems.filter((it) => it.order_id === o.id);
-                  const customer = customers.find((c) => c.id === o.customer_id);
-                  return (
-                    <div key={o.id} className="rounded-2xl border border-peach/60 bg-white/80 p-4 shadow-card">
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-tin-50 leading-none">
-                          <span className="text-[0.65rem] font-semibold text-tin-dark">
-                            {new Date(o.order_date + "T00:00:00").toLocaleDateString("es-CL", { month: "short" })}
-                          </span>
-                          <span className="font-display text-lg font-extrabold text-cocoa">
-                            {new Date(o.order_date + "T00:00:00").getDate()}
-                          </span>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="truncate font-semibold text-cocoa">{customer?.name ?? "Sin cliente"}</p>
-                            <span className="text-xs text-cocoa-soft">{o.code}</span>
-                          </div>
-                          <p className="truncate text-xs text-cocoa-light">
-                            {items.map((it) => `${it.quantity}× ${it.name_snapshot}`).join(", ")}
-                          </p>
-                          {o.order_time && (
-                            <p className="mt-0.5 flex items-center gap-1 text-xs text-cocoa-soft">
-                              <Clock className="h-3 w-3" /> {o.order_time}
-                            </p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <p className="font-display text-lg font-extrabold text-cocoa">{formatMoney(o.total)}</p>
-                          {o.payment_status === "pagado" ? (
-                            <Badge tone="success">Pagado</Badge>
-                          ) : o.payment_status === "abono" ? (
-                            <Badge tone="warning">Abono {formatMoney(o.deposit)}</Badge>
-                          ) : (
-                            <Badge tone="danger">Sin pago</Badge>
-                          )}
-                        </div>
-                      </div>
-
-                      {o.notes && <p className="mt-2 rounded-lg bg-peach-light/40 px-3 py-1.5 text-xs text-cocoa-light">{o.notes}</p>}
-
-                      <div className="mt-3 flex items-center gap-2 border-t border-peach/50 pt-3">
-                        <Badge tone={STATUS_TONE[o.status]}>
-                          {ORDER_STATUSES.find((s) => s.value === o.status)?.label}
-                        </Badge>
-                        <div className="ml-auto flex items-center gap-2">
-                          <Select
-                            value={o.status}
-                            onChange={(e) => updateOrderStatus(o.id, e.target.value as OrderStatus)}
-                            className="h-9 w-40 text-sm"
-                          >
-                            {ORDER_STATUSES.map((s) => (
-                              <option key={s.value} value={s.value}>{s.label}</option>
-                            ))}
-                          </Select>
-                          <button onClick={() => setDeleting(o)} className="text-cocoa-soft hover:text-danger" aria-label="Eliminar">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                {groups.get(bucket)!.map((o) => (
+                  <OrderCard
+                    key={o.id}
+                    order={o}
+                    items={orderItems.filter((it) => it.order_id === o.id)}
+                    customer={customers.find((c) => c.id === o.customer_id)}
+                    statuses={statuses}
+                    alertDays={settings.alert_days}
+                    onPay={setPaying}
+                    onCancel={setCancelling}
+                  />
+                ))}
               </div>
             </section>
           ))}
         </div>
       )}
 
-      <OrderForm open={open} onClose={() => setOpen(false)} />
+      <OrderWizard open={open} onClose={() => setOpen(false)} />
+      <MoneyInWizard open={!!paying} onClose={() => setPaying(null)} initialOrderId={paying?.id ?? null} />
       <ConfirmDialog
-        open={!!deleting}
-        onClose={() => setDeleting(null)}
+        open={!!cancelling}
+        onClose={() => setCancelling(null)}
+        confirmLabel="Cancelar pedido"
         onConfirm={async () => {
-          if (!deleting) return;
+          if (!cancelling) return;
           try {
-            for (const it of orderItems.filter((x) => x.order_id === deleting.id)) {
-              await remove(TABLES.order_items, it.id);
-            }
-            await remove(TABLES.orders, deleting.id);
-            toast("Pedido eliminado");
+            const r = await setOrderStatus(cancelling.id, "cancelado");
+            toast("Pedido cancelado");
+            if (r.warning) toast(r.warning, "info");
           } catch (e) {
-            toast(e instanceof Error ? e.message : "No se pudo eliminar.", "error");
+            toast(getErrorMessage(e, "No se pudo cancelar."), "error");
             throw e;
           }
         }}
-        title="Eliminar pedido"
-        message="¿Eliminar este pedido? Esta acción no se puede deshacer."
+        title="Cancelar pedido"
+        message="El pedido queda en la lista de cancelados (no se borra). Si tenía abono y lo devuelves, regístralo como reembolso."
       />
     </div>
   );

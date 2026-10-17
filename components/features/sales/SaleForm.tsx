@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Plus, Minus, Trash2, ShoppingCart } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { MoneyInput } from "@/components/ui/money-input";
 import { useToast } from "@/components/ui/toast";
 import { useTable } from "@/lib/data/hooks";
-import { createSale } from "@/lib/data/repo";
+import { createSale, newOperationKey } from "@/lib/data/repo";
 import { getErrorMessage } from "@/lib/data/error";
 import { TABLES } from "@/lib/data/types";
 import type { Product, Customer, PaymentMethod, PaymentStatus } from "@/lib/data/types";
@@ -29,9 +29,12 @@ export function SaleForm({ open, onClose }: { open: boolean; onClose: () => void
   const [status, setStatus] = useState<PaymentStatus>("pagado");
   const [partial, setPartial] = useState(0);
   const [saving, setSaving] = useState(false);
+  // Una clave por venta: si se toca dos veces o se reintenta tras un error de red, no se duplica.
+  const [opKey, setOpKey] = useState(newOperationKey);
 
   useEffect(() => {
     if (open) {
+      setOpKey(newOperationKey());
       setCustomerId("");
       setCart([]);
       setMethod("efectivo");
@@ -65,11 +68,23 @@ export function SaleForm({ open, onClose }: { open: boolean; onClose: () => void
         .filter((l) => l.quantity > 0)
     );
 
+  // Bloqueo inmediato contra doble toque (el estado "saving" llega un render tarde).
+  const guard = useRef(false);
   const save = async () => {
+    if (guard.current) return;
+    guard.current = true;
+    try {
+      await saveInner();
+    } finally {
+      guard.current = false;
+    }
+  };
+  const saveInner = async () => {
     if (cart.length === 0) {
       toast("Agrega al menos un producto.", "error");
       return;
     }
+    if (saving) return;
     if (status !== "pagado" && !customerId) {
       toast("Para ventas fiadas elige un cliente.", "error");
       return;
@@ -82,6 +97,7 @@ export function SaleForm({ open, onClose }: { open: boolean; onClose: () => void
         method: status === "pagado" ? method : "fiado",
         status,
         paidAmount: status === "abono" ? partial : 0,
+        key: opKey,
       });
       toast("Venta registrada correctamente 💕");
       onClose();
