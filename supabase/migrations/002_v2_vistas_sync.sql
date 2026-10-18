@@ -9,6 +9,20 @@ begin;
 
 alter table public.sync_conflicts add column if not exists summary text;
 
+-- Bases creadas con una versión antigua del esquema pueden no tener created_at
+-- en algunas tablas; las vistas lo usan para ordenar.
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'business_settings','categories','suppliers','ingredients','ingredient_purchases','inventory_movements',
+    'recipes','recipe_ingredients','products','product_costs','customers','sales','sale_items','payments',
+    'expenses','orders','order_items','notifications','customer_account_movements'
+  ] loop
+    execute format('alter table public.%I add column if not exists created_at timestamptz not null default now()', t);
+  end loop;
+end $$;
+
 -- Costos y estado de costeo -------------------------------------------------
 create or replace function public.ingredient_cost_status(i public.ingredients)
 returns text language sql stable security definer set search_path = public as $$
